@@ -7,20 +7,19 @@
 #include <openssl/sha.h>
 
 #include <stack>
+#include <iostream>
 
 Block::Block(Block* prev, OP type, std::string user, 
 std::string title, std::string content) 
 : prev(prev), type(type), user(user), title(title), content(content)
 {
-    
     if (prev) {
         prevHash = prev->hash;
     }
     else {
         prevHash = "00000000000000000000000000000000";
     }
-    nonce = setHash();
-    
+    setHash();
 }
 
 Block* Block::getPrev() 
@@ -116,6 +115,7 @@ Block* Blockchain::findPost(std::string title)
         if (curr->isPost() && curr->getTitle() == title) {
             return curr;
         }
+        curr = curr->getPrev();
     }
     return nullptr;
 }
@@ -128,6 +128,7 @@ std::string Blockchain::viewAll()
         if (curr->isPost()) {
             posts.push(curr);
         }
+        curr = curr->getPrev();
     }
 
     if (posts.empty()) return "BLOG EMPTY\n\n";
@@ -150,6 +151,7 @@ std::string Blockchain::viewByUser(std::string user)
         if (curr->getUser() == user) {
             posts.push(curr);
         }
+        curr = curr->getPrev();
     }
 
     if (posts.empty()) return "NO POST\n\n";
@@ -176,6 +178,7 @@ std::string Blockchain::viewComments(std::string title)
                 break; //break once we reach the post
             }
         }
+        curr = curr->getPrev();
     }
 
     // return message if the post not found

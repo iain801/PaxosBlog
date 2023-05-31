@@ -7,7 +7,7 @@ FLAGS	= -c -Wall -O2
 LFLAGS	= -lssl -lcrypto -lpthread -fsycl
 
 all: $(OBJS)
-	$(CC) $(OBJS) -o $(OUT) $(LFLAGS)
+	$(CC) -O2 $(OBJS) -o $(OUT) $(LFLAGS)
 
 blockchain.o: blockchain.cpp
 	$(CC) $(FLAGS) blockchain.cpp
