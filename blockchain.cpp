@@ -9,7 +9,7 @@
 #include <stack>
 #include <iostream>
 
-Block::Block(Block* prev, OP type, std::string user, 
+Blockchain::Block::Block(Block* prev, OP type, std::string user, 
 std::string title, std::string content) 
 : prev(prev), type(type), user(user), title(title), content(content)
 {
@@ -22,14 +22,14 @@ std::string title, std::string content)
     setHash();
 }
 
-std::string Block::getOperation() const
+std::string Blockchain::Block::getOperation() const
 {
     std::stringstream ss;
     ss << getType() << ", " << getUser() << ", " << getTitle() << ", " << getContent();
     return ss.str();
 }
 
-std::string Block::str() const
+std::string Blockchain::Block::str() const
 {
     std::stringstream ss;
     ss << '(' << prevHash << ", " << getType() << ", " << getUser() 
@@ -37,7 +37,7 @@ std::string Block::str() const
     return ss.str();
 }
 
-int Block::setHash() 
+int Blockchain::Block::setHash() 
 {   
     // setup random nonce generator
     std::random_device            rand_dev;
@@ -53,7 +53,7 @@ int Block::setHash()
     return nonce;
 }
 
-std::string Block::getHash()
+std::string Blockchain::Block::getHash()
 {   
     // compile data 
     std::stringstream ss;
@@ -63,7 +63,7 @@ std::string Block::getHash()
 
 /* https://stackoverflow.com/a/10632725 
     Updated to use non-deprecated function SHA256*/
-std::string Block::sha256(const std::string str)
+std::string Blockchain::Block::sha256(const std::string str)
 {
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256((const unsigned char*) str.c_str(), str.length(), hash);
@@ -98,7 +98,7 @@ int Blockchain::addBlock(OP type, std::string user, std::string title, std::stri
     return 1;
 }
 
-Block* Blockchain::findPost(std::string title) 
+Blockchain::Block* Blockchain::findPost(std::string title) 
 {
     Block* curr = tail;
     while (curr) {
@@ -206,7 +206,7 @@ std::string Blockchain::str()
         curr = posts.top();
         posts.pop();
         ss << curr->str();
-        
+
         if(!posts.empty()) 
             ss << ", ";
     }
