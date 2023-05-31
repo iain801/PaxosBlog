@@ -16,6 +16,7 @@ int main(int argc, char** argv)
     std::cout << bc.viewAll();
     std::cout << bc.viewByUser("ixw");
     std::cout << bc.viewComments("How to Train Your Dragon");
+    std::cout << bc.str();
 
     std::cout << "done!" << std::endl;
     return 0;

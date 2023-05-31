@@ -22,29 +22,19 @@ std::string title, std::string content)
     setHash();
 }
 
-Block* Block::getPrev() 
+std::string Block::getOperation() const
 {
-    return prev;
+    std::stringstream ss;
+    ss << getType() << ", " << getUser() << ", " << getTitle() << ", " << getContent();
+    return ss.str();
 }
 
-std::string Block::getUser()
+std::string Block::str() const
 {
-    return user;
-}
-
-std::string Block::getTitle()
-{
-    return title;
-}
-
-std::string Block::getContent()
-{
-    return content;
-}
-
-OP Block::isPost()
-{
-    return type;
+    std::stringstream ss;
+    ss << '(' << prevHash << ", " << getType() << ", " << getUser() 
+        << ", " << getTitle() << ", " << getContent() << ", " << nonce << ')';
+    return ss.str();
 }
 
 int Block::setHash() 
@@ -67,7 +57,7 @@ std::string Block::getHash()
 {   
     // compile data 
     std::stringstream ss;
-    ss << prevHash << type << user << title << content << nonce;
+    ss << prevHash << getOperation() << nonce;
     return sha256(ss.str());
 }
 
@@ -200,3 +190,28 @@ std::string Blockchain::viewComments(std::string title)
     return ss.str();
 }
 
+std::string Blockchain::str()
+{
+    std::stack<Block*> posts;
+    Block* curr = tail;
+    while (curr) {
+        posts.push(curr);
+        curr = curr->getPrev();
+    }
+
+    std::stringstream ss;
+    ss << '[';
+
+    while(!posts.empty()) {
+        curr = posts.top();
+        posts.pop();
+        ss << curr->str();
+        
+        if(!posts.empty()) 
+            ss << ", ";
+    }
+
+    ss << ']' << std::endl;
+
+    return ss.str();
+}

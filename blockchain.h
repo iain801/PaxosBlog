@@ -15,6 +15,7 @@ class Block {
     std::string prevHash;
     std::string hash;
     int nonce;
+
     enum OP type;
     std::string user;
     std::string title;
@@ -27,11 +28,38 @@ public:
         std::string title,
         std::string content);
 
-    Block* getPrev();
-    std::string getUser();
-    std::string getTitle();
-    std::string getContent();
-    OP isPost();
+    inline Block* getPrev() const
+    {
+        return prev;
+    }
+
+    inline std::string getUser() const
+    {
+        return user;
+    }
+
+    inline std::string getTitle() const
+    {
+        return title;
+    }
+
+    inline std::string getContent() const 
+    {
+        return content;
+    }
+
+    inline OP isPost() const
+    {
+        return type;
+    }
+
+    inline std::string getType() const
+    {
+        return type?"POST":"COMMENT";
+    }
+
+    std::string getOperation() const;
+    std::string str() const;
 
 };
 
@@ -55,6 +83,7 @@ public:
     std::string viewAll();
     std::string viewByUser(std::string user);
     std::string viewComments(std::string title);
+    std::string str();
     
 };
 
