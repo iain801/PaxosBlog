@@ -3,21 +3,40 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <thread>
 
-#define sock_t int
+
+#define BASE_PORT 8000
 
 class PaxosHandler {
 
-
-    PaxosHandler();
+    PaxosHandler(int PID);
     ~PaxosHandler();
 
-    std::map<int, sock_t> outsocks;
-    sock_t insock;
+    // "Server-Side" Variables
+    int serverSock, newSock;
+    struct sockaddr_in inAddr;
+    struct sockaddr_storage serverStorage;
+    std::vector<std::thread> tid;
 
+    // "Client-Side" Variables
+    std::map<int, int> outSocks;
     
+    void msgListener(int newSock);
+    void msgHandler(std::string msg);
+
+public:
+    inline std::map<int, int> getOutAddrs() const { return outSocks; }
+    inline struct sockaddr_in getInAddr() const { return inAddr; }
+
+    void init();
+    void interconnect(int PID);
+    void disconnect(int PID);
 
 };
 
