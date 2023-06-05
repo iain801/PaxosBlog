@@ -1,7 +1,7 @@
 #ifndef PAXOS_H
 #define PAXOS_H
 
-#include <map>
+#include <unordered_map>
 #include <string>
 #include <vector>
 
@@ -14,29 +14,31 @@
 #define BASE_PORT 8000
 
 class PaxosHandler {
-
-    PaxosHandler(int PID);
-    ~PaxosHandler();
+    
+    int myPID;
 
     // "Server-Side" Variables
-    int serverSock, newSock;
+    int serverSock;
     struct sockaddr_in inAddr;
     struct sockaddr_storage serverStorage;
-    std::vector<std::thread> tid;
+    std::unordered_map<int, int> inSocks;
 
     // "Client-Side" Variables
-    std::map<int, int> outSocks;
-    
-    void msgListener(int newSock);
-    void msgHandler(std::string msg);
-
-public:
-    inline std::map<int, int> getOutAddrs() const { return outSocks; }
-    inline struct sockaddr_in getInAddr() const { return inAddr; }
+    std::unordered_map<int, int> outSocks;
 
     void init();
+    void msgListener(int newSock);
+    void msgHandler(std::string msg, int clientSock);
+
+public:
+    PaxosHandler(int PID);
+    ~PaxosHandler();
+    
     void interconnect(int PID);
     void disconnect(int PID);
+
+    inline std::unordered_map<int, int> getInSocks() { return inSocks; }
+    inline std::unordered_map<int, int> getOutSocks() { return outSocks; }
 
 };
 

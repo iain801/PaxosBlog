@@ -3,7 +3,7 @@ SOURCE	= blockchain.cpp paxos.cpp runner.cpp
 HEADER	= blockchain.h paxos.h
 OUT		= paxos_blog.out
 CC	 	= icpx
-OFLAGS	= -O0
+OFLAGS	= -Ofast
 FLAGS	= -c -Wall $(OFLAGS)
 LFLAGS	= -lssl -lcrypto
 

@@ -24,14 +24,14 @@ std::string title, std::string content)
 
 std::string Blockchain::Block::getOperation() const
 {
-    std::stringstream ss;
+    std::ostringstream ss;
     ss << getType() << ", " << getUser() << ", " << getTitle() << ", " << getContent();
     return ss.str();
 }
 
 std::string Blockchain::Block::str() const
 {
-    std::stringstream ss;
+    std::ostringstream ss;
     ss << '(' << prevHash << ", " << getType() << ", " << getUser() 
         << ", " << getTitle() << ", " << getContent() << ", " << nonce << ')';
     return ss.str();
@@ -56,7 +56,7 @@ int Blockchain::Block::setHash()
 std::string Blockchain::Block::getHash()
 {   
     // compile data 
-    std::stringstream ss;
+    std::ostringstream ss;
     ss << prevHash << getOperation() << nonce;
     return sha256(ss.str());
 }
@@ -68,7 +68,7 @@ std::string Blockchain::Block::sha256(const std::string str)
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256((const unsigned char*) str.c_str(), str.length(), hash);
 
-    std::stringstream ss;
+    std::ostringstream ss;
     for(int i = 0; i < SHA256_DIGEST_LENGTH; i++)
     {
         ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
@@ -123,7 +123,7 @@ std::string Blockchain::viewAll()
 
     if (posts.empty()) return "BLOG EMPTY\n\n";
 
-    std::stringstream ss;
+    std::ostringstream ss;
     while(!posts.empty()) {
         curr = posts.top();
         ss << '"' << curr->getTitle() << '"' << " by " << curr->getUser() << std::endl;
@@ -146,7 +146,7 @@ std::string Blockchain::viewByUser(std::string user)
 
     if (posts.empty()) return "NO POST\n\n";
 
-    std::stringstream ss;
+    std::ostringstream ss;
     while(!posts.empty()) {
         curr = posts.top();
         ss << '"' << curr->getTitle() << '"' << std::endl;
@@ -175,7 +175,7 @@ std::string Blockchain::viewComments(std::string title)
     if (posts.empty()) return "POST NOT FOUND\n\n";
 
     // print content of post
-    std::stringstream ss;
+    std::ostringstream ss;
     ss << posts.top()->getContent() << std::endl << std::endl;
     posts.pop();
 
@@ -199,7 +199,7 @@ std::string Blockchain::str()
         curr = curr->getPrev();
     }
 
-    std::stringstream ss;
+    std::ostringstream ss;
     ss << '[';
 
     while(!posts.empty()) {
