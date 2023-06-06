@@ -213,7 +213,7 @@ void PaxosHandler::disconnect(int PID)
         return;
     }
     std::cout << "Disconnecting " << outSocks.begin()->first << "...";
-    
+
     // Send disconnect message to PID
     std::ostringstream ss;
     ss << "DISCONNECT, " << myPID;
@@ -251,35 +251,17 @@ void PaxosHandler::broadcastAll(std::string msg)
     broadcast(targets, msg);
 }
 
-void PaxosHandler::printConnections() 
-{
-    std::cout << "In Socks: \n";
+std::string PaxosHandler::printConnections() 
+{   
+    std::ostringstream ss;
+    ss << "In Socks: \n";
     for (auto s : inSocks) {
-        std::cout << "PID " << s.first << ": " << s.second << "\n";
+        ss << "PID " << s.first << ": " << s.second << "\n";
     }
-    std::cout << "Out Socks: \n";
+    ss << "Out Socks: \n";
     for (auto s : outSocks) {
-        std::cout << "PID " << s.first << ": " << s.second << "\n";
+        ss << "PID " << s.first << ": " << s.second << "\n";
     }
-    std::cout << std::endl;
-}
-
-void PaxosHandler::printBlockchain() 
-{
-    std::cout << blog.str() << std::endl;
-}
-
-void PaxosHandler::printBlog() 
-{
-    std::cout << blog.viewAll() << std::endl;
-}
-
-void PaxosHandler::printByUser(std::string user) 
-{
-    std::cout << blog.viewByUser(user) << std::endl;
-}
-
-void PaxosHandler::printComments(std::string title) 
-{
-    std::cout << blog.viewComments(title) << std::endl;
+    ss << std::endl;
+    return ss.str();
 }

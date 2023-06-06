@@ -47,11 +47,11 @@ public:
     inline std::unordered_map<int, int> getInSocks() { return inSocks; }
     inline std::unordered_map<int, int> getOutSocks() { return outSocks; }
 
-    void printBlog();
-    void printByUser(std::string user);
-    void printComments(std::string title);
-    void printBlockchain();
-    void printConnections();
+    inline std::string printBlog() { return blog.viewAll(); }
+    inline std::string printByUser(std::string user) { return blog.viewByUser(user); }
+    inline std::string printComments(std::string title) {return blog.viewComments(title); }
+    inline std::string printBlockchain() { return blog.str();}
+    std::string printConnections();
 
 };
 

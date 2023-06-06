@@ -56,6 +56,7 @@ void userInput(PaxosHandler* server)
         msgVector.erase(msgVector.begin());
 
         if (opType == "crash") {
+            std::cout << "Exiting..." << std::endl;
             break;
         } 
         else if (opType == "failLink") {
@@ -71,16 +72,16 @@ void userInput(PaxosHandler* server)
             }
         } 
         else if (opType == "blockchain") {
-            server->printBlockchain();
+            std::cout << server->printBlockchain() << std::endl;
         }
         else if (opType == "blog") {
-            server->printBlog();
+            std::cout << server->printBlog() << std::endl;
         }
         else if (opType == "view") {
-            server->printByUser(msgVector.front());
+            std::cout << server->printByUser(msgVector.front()) << std::endl;
         }
         else if (opType == "read") {
-            server->printComments(msgVector.front());
+            std::cout << server->printComments(msgVector.front()) << std::endl;
         }
         else if (opType == "queue") {
             // TODO: print all operations in the queue
