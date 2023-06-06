@@ -108,9 +108,11 @@ void PaxosHandler::msgListener(int clientSock)
         }
 
         std::string input(buf, 0, bytesReceived); 
-
-        std::thread th(&PaxosHandler::msgHandler, this, input, clientSock);
-        th.detach();
+        
+        if(input.length()) {
+            std::thread th(&PaxosHandler::msgHandler, this, input, clientSock);
+            th.detach();
+        }
     }
 }
 
@@ -140,11 +142,11 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
 
     if (opType == "DISCONNECT") {
 
-        int target = stoi(msgVector[1]);
+        int target = stoi(msgVector.front());
         
         // Close outgoing socket
         int clientOut = outSocks[target];
-        close(clientOut);
+        // close(clientOut);
         outSocks.erase(outSocks.find(target));
         
         // Close incoming socket
@@ -181,6 +183,7 @@ void PaxosHandler::interconnect(int newPID)
     } 
     else 
         std::cout << "Duplicate connection to " << newPID << std::endl;
+
 }
 
 void PaxosHandler::disconnect(int PID)
@@ -201,7 +204,7 @@ void PaxosHandler::disconnect(int PID)
     inSocks.erase(inSocks.find(PID));
     
     // Close outgoing socket
-    close(clientOut);
+    // close(clientOut);
     outSocks.erase(outSocks.find(PID));
 }
 
