@@ -1,9 +1,9 @@
-OBJS	= blockchain.o paxos.o runner.o
-SOURCE	= blockchain.cpp paxos.cpp runner.cpp
+OBJS	= blockchain.o paxos.o runner.o tsqueue.o
+SOURCE	= blockchain.cpp paxos.cpp runner.cpp tsqueue.cpp
 HEADER	= blockchain.h paxos.h
 OUT		= paxos_blog.out
 CC	 	= icpx
-OFLAGS	= -Ofast
+OFLAGS	= -g -O0
 FLAGS	= -c -Wall $(OFLAGS)
 LFLAGS	= -lssl -lcrypto
 
@@ -16,12 +16,12 @@ blockchain.o: blockchain.cpp
 paxos.o: paxos.cpp
 	$(CC) $(FLAGS) paxos.cpp
 
+tsqueue.o: tsqueue.cpp
+	$(CC) $(FLAGS) tsqueue.cpp
+
 runner.o: runner.cpp
 	$(CC) $(FLAGS) runner.cpp
 
 
 clean:
 	rm -f $(OBJS) $(OUT)
-
-run: $(OUT)
-	./$(OUT)

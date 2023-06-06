@@ -2,10 +2,13 @@
 
 #include <iostream>
 #include <sstream>
+#include <thread>
 #include <chrono>
 
 #include <unistd.h>
 #include <string.h>
+
+#define BUF_SIZE 2048
 
 PaxosHandler::PaxosHandler(int PID) : myPID(PID)
 {
@@ -42,10 +45,18 @@ PaxosHandler::PaxosHandler(int PID) : myPID(PID)
 
 PaxosHandler::~PaxosHandler() 
 {
-    for(auto sock : outSocks) {
-        disconnect(sock.first);
+    closeall();
+}
+
+void PaxosHandler::closeall() 
+{   
+    while(!outSocks.empty()) {
+        std::cout << "Disconnecting " << outSocks.begin()->first << "...";
+        disconnect(outSocks.begin()->first);
+        std::cout << "Done" << std::endl;
+
     }
-    shutdown(serverSock, SHUT_RDWR);
+    close(serverSock);
 }
 
 void PaxosHandler::init()
@@ -57,7 +68,7 @@ void PaxosHandler::init()
     if (listen(serverSock, 50) == 0) {
         std::cout << "Listening\n" << std::endl;
     } else {
-        std::cerr << "listening" << std::endl;
+        std::cerr << "Error in listening" << std::endl;
         exit(EXIT_FAILURE);
     }
     
@@ -68,10 +79,11 @@ void PaxosHandler::init()
         int newSock = accept(serverSock, (struct sockaddr*)&serverStorage, &addrSize);
         int newPID = 0, rawPID = 0;
 
+        // https://stackoverflow.com/a/9141716
         int status = read(newSock, &rawPID, sizeof(rawPID));
-
         if (status > 0) {
             newPID = ntohs(rawPID);
+
             if (inSocks.find(newPID) == inSocks.end()) {
                 inSocks.emplace(newPID, newSock);
 
@@ -95,12 +107,12 @@ void PaxosHandler::init()
 void PaxosHandler::msgListener(int clientSock)
 {   
     std::cout << "msgListener Start" << std::endl;
-    char buf[4096];
+    char buf[BUF_SIZE];
 
     while (true) {
         // empty buf
         for(char &c : buf) { c = 0; }
-        int bytesReceived = recv(clientSock, buf, 4096, 0);
+        int bytesReceived = recv(clientSock, buf, sizeof(buf), 0);
 
         if (bytesReceived < 0) {
             std::cerr << "Error in receiving" << std::endl;
@@ -145,7 +157,7 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
         int target = stoi(msgVector.front());
         
         // Close outgoing socket
-        int clientOut = outSocks[target];
+        // int clientOut = outSocks[target];
         // close(clientOut);
         outSocks.erase(outSocks.find(target));
         
@@ -158,10 +170,15 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
 }
 
 void PaxosHandler::interconnect(int newPID)
-{       
+{           
+    if(newPID == myPID) {
+        std::cout << "Unable to connect with self" << std::endl;
+        return;
+    }
+
     if (outSocks.find(newPID) == outSocks.end()) {
         
-        std::cout << "CONNECTION " << newPID << std::endl;
+        std::cout << "Connecting " << newPID << "...";
         int newPort = BASE_PORT + newPID;
         struct sockaddr_in newAddr;
         int clientSock = socket(AF_INET, SOCK_STREAM, 0);
@@ -175,28 +192,33 @@ void PaxosHandler::interconnect(int newPID)
         }
         
         // Send message of PID to connecting server
+        // https://stackoverflow.com/a/9141716
         int convertedPID = htons(myPID);
         write(clientSock, &convertedPID, sizeof(convertedPID));
 
         // Add socket number to outsock map
         outSocks.emplace(newPID, clientSock);
-    } 
-    else 
-        std::cout << "Duplicate connection to " << newPID << std::endl;
 
+        std::cout << "Done " << std::endl;
+    } 
+    else {
+        std::cout << "Duplicate connection to " << newPID << std::endl;
+    }
 }
 
 void PaxosHandler::disconnect(int PID)
 {   
-    int clientOut = outSocks[PID];
-
+    if(PID == myPID) {
+        std::cout << "Unable to disconnect with self" << std::endl;
+        return;
+    }
+    std::cout << "Disconnecting " << outSocks.begin()->first << "...";
+    
     // Send disconnect message to PID
     std::ostringstream ss;
     ss << "DISCONNECT, " << myPID;
 
-    char msg[30];
-    strcpy(msg, ss.str().c_str());
-    send(clientOut, msg, strlen(msg), 0);
+    sendMessage(PID, ss.str());
 
     // Close incoming socket
     int clientIn = inSocks[PID];
@@ -204,7 +226,60 @@ void PaxosHandler::disconnect(int PID)
     inSocks.erase(inSocks.find(PID));
     
     // Close outgoing socket
+    // int clientOut = outSocks[PID];
     // close(clientOut);
     outSocks.erase(outSocks.find(PID));
+    
+    std::cout << "Done" << std::endl;
 }
 
+void PaxosHandler::broadcast(std::vector<int> targets, std::string msg)
+{
+    char out[BUF_SIZE];
+    strcpy(out, msg.c_str());
+    for(int i : targets) {
+        send(outSocks[i], out, sizeof(out), 0);
+    }
+}
+
+void PaxosHandler::broadcastAll(std::string msg)
+{
+    std::vector<int> targets;
+    for(auto s : outSocks) {
+        targets.push_back(s.first);
+    }
+    broadcast(targets, msg);
+}
+
+void PaxosHandler::printConnections() 
+{
+    std::cout << "In Socks: \n";
+    for (auto s : inSocks) {
+        std::cout << "PID " << s.first << ": " << s.second << "\n";
+    }
+    std::cout << "Out Socks: \n";
+    for (auto s : outSocks) {
+        std::cout << "PID " << s.first << ": " << s.second << "\n";
+    }
+    std::cout << std::endl;
+}
+
+void PaxosHandler::printBlockchain() 
+{
+    std::cout << blog.str() << std::endl;
+}
+
+void PaxosHandler::printBlog() 
+{
+    std::cout << blog.viewAll() << std::endl;
+}
+
+void PaxosHandler::printByUser(std::string user) 
+{
+    std::cout << blog.viewByUser(user) << std::endl;
+}
+
+void PaxosHandler::printComments(std::string title) 
+{
+    std::cout << blog.viewComments(title) << std::endl;
+}

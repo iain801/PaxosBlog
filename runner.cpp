@@ -3,6 +3,7 @@
 
 #include <string>
 #include <thread>
+#include <algorithm>
 #include <iostream>
 
 // https://stackoverflow.com/a/46931770
@@ -25,7 +26,7 @@ void userInput(PaxosHandler* server)
 {   
     std::vector<std::string> msgVector;
     std::string msg;
-    std::string delimiter = ", ";
+    std::string delimiter = ",";
     size_t pos = 0;
 
     while(true) {
@@ -33,12 +34,16 @@ void userInput(PaxosHandler* server)
         pos = 0;
 
         std::getline(std::cin, msg);
+        // std::remove_if(msg.begin(), msg.end(), isspace);
+        // msg.erase(remove(msg.begin(), msg.end(), ')'), msg.end());
         
         // Parse message into vector
         // Modified from https://stackoverflow.com/a/14266139
         if ((pos = msg.find('(')) != std::string::npos) {
+            // push operation and erase up to opening paretheses
             msgVector.push_back(msg.substr(0, pos));
             msg.erase(0, pos + 1);
+            // Remove end parentheses
             msg.pop_back();
 
             std::vector<std::string> args = split(msg, delimiter);
@@ -55,49 +60,58 @@ void userInput(PaxosHandler* server)
         } 
         else if (opType == "failLink") {
             for (auto s : msgVector) {
-                int target = stoi(s);
+                int target = std::stoi(s);
                 server->disconnect(target);
             }
         } 
         else if (opType == "fixLink") {
             for (auto s : msgVector) {
-                int target = stoi(s);
+                int target = std::stoi(s);
                 server->interconnect(target);
             }
         } 
-        else if (opType == "getConnections") {
-            auto inSocks = server->getInSocks();
-            auto outSocks = server->getOutSocks();
-            std::cout << "In Socks: \n";
-            for (auto s : inSocks) {
-                std::cout << "PID " << s.first << ": " << s.second << "\n";
+        else if (opType == "blockchain") {
+            server->printBlockchain();
+        }
+        else if (opType == "blog") {
+            server->printBlog();
+        }
+        else if (opType == "view") {
+            server->printByUser(msgVector.front());
+        }
+        else if (opType == "read") {
+            server->printComments(msgVector.front());
+        }
+        else if (opType == "queue") {
+            // TODO: print all operations in the queue
+            std::cout << "Feature not complete" << std::endl;
+        }
+        else if (opType == "post") {
+            // TODO: create a post <OP::POST, username, title, content>
+            std::cout << "Feature not complete" << std::endl;
+        }
+        else if (opType == "comment") {
+            // TODO: create a comment <OP::COMMENT, username, title, content>
+            std::cout << "Feature not complete" << std::endl;
+        }
+        else if (opType == "test") {
+            std::string str = msgVector.front();
+            msgVector.erase(msgVector.begin());
+            for (auto s : msgVector) {
+                server->sendMessage(std::stoi(s), str);
             }
-            std::cout << "Out Socks: \n";
-            for (auto s : outSocks) {
-                std::cout << "PID " << s.first << ": " << s.second << "\n";
-            }
-            std::cout << std::endl;
+        }
+        else if (opType == "getLinks") {
+            server->printConnections();
         }
         else {
-            std::cout << "Invalid Command" << std::endl;
+            std::cout << "Invalid Command\n" << std::endl;
         }
     }
 }
 
 int main(int argc, char** argv)
 {
-    Blockchain bc;
-    bc.addBlock(OP::POST, "ixw", "How to Train Your Dragon", "You don't");
-    bc.addBlock(OP::COMMENT, "ixw", "How to Train Your Dragon", "Wait jk");
-    bc.addBlock(OP::POST, "abm", "Top 10 Anime Betrayals", "I'm not quite sure actually");
-    bc.addBlock(OP::COMMENT, "abm", "How to Train Your Dragon", "Are you sure about that?");
-    bc.addBlock(OP::COMMENT, "ixw", "Top 10 Anime Betrayals", "Damn that's disappointing");
-
-    // std::cout << bc.viewAll();
-    // std::cout << bc.viewByUser("ixw");
-    // std::cout << bc.viewComments("How to Train Your Dragon");
-    // std::cout << bc.str();
-
     PaxosHandler* server = new PaxosHandler(std::stoi(argv[1]));
 
     std::thread input(userInput, server);
