@@ -84,8 +84,7 @@ void userInput(PaxosHandler* server)
             std::cout << server->printComments(msgVector.front()) << std::endl;
         }
         else if (opType == "queue") {
-            // TODO: print all operations in the queue
-            std::cout << "Feature not complete" << std::endl;
+            std::cout << server->printQueue() << std::endl;
         }
         else if (opType == "post") {
             // TODO: create a post <OP::POST, username, title, content>
@@ -103,7 +102,7 @@ void userInput(PaxosHandler* server)
             }
         }
         else if (opType == "getLinks") {
-            server->printConnections();
+            std::cout << server->printConnections() << std::endl;
         }
         else {
             std::cout << "Invalid Command\n" << std::endl;

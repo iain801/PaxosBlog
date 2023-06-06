@@ -215,3 +215,14 @@ std::string Blockchain::str()
 
     return ss.str();
 }
+
+int Blockchain::depth()
+{
+    int c = 0;
+    Block* curr = tail;
+    while (curr) {
+        ++c;
+        curr = curr->getPrev();
+    }
+    return c;
+}

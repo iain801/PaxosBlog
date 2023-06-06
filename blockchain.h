@@ -65,6 +65,8 @@ public:
     std::string viewComments(std::string title);
     std::string str();
     
+    int depth();
+    
 };
 
 #endif //BLOCKCHAIN_H

@@ -9,9 +9,13 @@
 #include <string.h>
 
 #define BUF_SIZE 2048
+#define TIME_OUT 10
 
-PaxosHandler::PaxosHandler(int PID) : myPID(PID)
+PaxosHandler::PaxosHandler(int PID) : myPID(PID), leaderPID(-1)
 {
+    blog = new Blockchain();
+    queue = new TSQueue();
+
     int opt = 1;
     socklen_t addrLen = sizeof(inAddr);
 
@@ -49,6 +53,8 @@ PaxosHandler::~PaxosHandler()
         disconnect(outSocks.begin()->first);
     }
     close(serverSock);
+
+    delete blog;
 }
 
 void PaxosHandler::init()
@@ -146,7 +152,7 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
 
     if (opType == "DISCONNECT") {
 
-        int target = stoi(msgVector.front());
+        int target = std::stoi(msgVector.front());
         
         // Close outgoing socket
         // int clientOut = outSocks[target];
@@ -158,6 +164,24 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
         close(clientIn);
         inSocks.erase(inSocks.find(target));
 
+    }
+    else if (opType == "PREPARE") {
+        int inBallot = std::stoi(msgVector[0]);
+        int inPID = std::stoi(msgVector[1]);
+        int inDepth = std::stoi(msgVector[2]);
+
+        if (inDepth >= blog->depth() && isDeeper(inBallot, inPID)) {
+            ballotNum = inBallot;
+            leaderPID = inPID;
+
+            std::ostringstream ss;
+            ss << "PROMISE, " << inBallot << ", " << inPID << ", " << inDepth;
+            sendMessage(inPID, ss.str());
+        }
+    }
+    else if (opType == "PROMISE") {
+        int inBallot = std::stoi(msgVector[0]);
+        ++ballotVotes[inBallot];
     }
 }
 
@@ -234,7 +258,7 @@ void PaxosHandler::broadcast(std::vector<int> targets, std::string msg)
     }
 }
 
-void PaxosHandler::broadcastAll(std::string msg)
+void PaxosHandler::broadcast(std::string msg)
 {
     std::vector<int> targets;
     for(auto s : outSocks) {
@@ -248,12 +272,36 @@ std::string PaxosHandler::printConnections()
     std::ostringstream ss;
     ss << "In Socks: \n";
     for (auto s : inSocks) {
-        ss << "PID " << s.first << ": " << s.second << "\n";
+        ss << "PID " << s.first << ": " << s.second << std::endl;
     }
     ss << "Out Socks: \n";
     for (auto s : outSocks) {
-        ss << "PID " << s.first << ": " << s.second << "\n";
+        ss << "PID " << s.first << ": " << s.second << std::endl;
     }
-    ss << std::endl;
     return ss.str();
+}
+
+void PaxosHandler::prepareBallot() 
+{
+    int thisBallot = ballotNum++;
+    std::ostringstream ss;
+    ss << "PREPARE, " << thisBallot << ", " << myPID << ", " << blog->depth();
+
+    ballotVotes.emplace(thisBallot, 1);
+
+    broadcast(ss.str());
+
+    int timer = 0;
+    while (isMajority(ballotVotes[thisBallot])) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        
+        // timeout timer
+        if(++timer > TIME_OUT) { return; }
+    }
+
+    // Won election
+    leaderPID = myPID;
+
+
+
 }
