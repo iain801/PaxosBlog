@@ -45,16 +45,8 @@ PaxosHandler::PaxosHandler(int PID) : myPID(PID)
 
 PaxosHandler::~PaxosHandler() 
 {
-    closeall();
-}
-
-void PaxosHandler::closeall() 
-{   
     while(!outSocks.empty()) {
-        std::cout << "Disconnecting " << outSocks.begin()->first << "...";
         disconnect(outSocks.begin()->first);
-        std::cout << "Done" << std::endl;
-
     }
     close(serverSock);
 }

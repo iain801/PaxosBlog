@@ -35,7 +35,6 @@ class PaxosHandler {
 public:
     PaxosHandler(int PID);
     ~PaxosHandler();
-    void closeall();
     
     void interconnect(int PID);
     void disconnect(int PID);
