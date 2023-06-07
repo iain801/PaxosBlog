@@ -91,21 +91,21 @@ bool Block::validNonce(int testNonce)
     return out;
 }
 
-int Block::setPrev(Block* prev)
+bool Block::setPrev(Block* prev)
 {  
     if(prev) {
         if(prev->hash == this->prevHash) {
             this->prev = prev;
-            return 1;
+            return true;
         }
     }
     else {
         if(this->prevHash == "00000000000000000000000000000000") {
             this->prev = prev;
-            return 1;
+            return true;
         }
     }
-    return 0;
+    return false;
 }
 
 Blockchain::Blockchain() : tail(nullptr) {}
@@ -133,15 +133,15 @@ Block* Blockchain::makeBlock(std::string type, std::string user, std::string tit
     return nullptr;
 }
 
-int Blockchain::addBlock(Block* newBlock) 
+bool Blockchain::addBlock(Block* newBlock) 
 {   
     if(!newBlock)
-        return 0;
+        return false;
     if(tail) {
         if(newBlock->getPrevHash() == tail->getHash()) {
             if(newBlock->setPrev(tail)) {
                 tail = newBlock;
-                return 1;
+                return true;
             }
         }
     }
@@ -149,11 +149,11 @@ int Blockchain::addBlock(Block* newBlock)
         if(newBlock->getPrevHash() == "00000000000000000000000000000000") {
             if(newBlock->setPrev(tail)) {
                 tail = newBlock;
-                return 1;
+                return true;
             }
         }
     }
-    return 0;
+    return false;
 }
 
 Block* Blockchain::findPost(std::string title) 

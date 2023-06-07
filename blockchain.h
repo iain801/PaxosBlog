@@ -33,7 +33,7 @@ class Block {
             std::string content);
 
         inline Block* getPrev() const { return prev; }
-        int setPrev(Block* prev);
+        bool setPrev(Block* prev);
 
         inline std::string getUser() const { return user; }
 
@@ -70,7 +70,7 @@ public:
     Blockchain();
     ~Blockchain();
 
-    int addBlock(Block* newBlock);
+    bool addBlock(Block* newBlock);
 
     Block* makeBlock(std::string type,
         std::string user,

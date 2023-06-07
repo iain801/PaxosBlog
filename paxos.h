@@ -31,9 +31,12 @@ class PaxosHandler {
     // Paxos Variables
     int leaderPID;
     int ballotNum;
+    int requestNum;
+    std::unordered_map<int, bool> acceptLocks;
     std::pair<int,int> acceptNum;
     std::pair<int, std::string> acceptVal;
     std::unordered_map<int, int> ballotVotes;
+    std::unordered_map<int, int> requestVotes;
     TSQueue* queue;
 
     Blockchain* blog;
@@ -45,9 +48,9 @@ class PaxosHandler {
     
     // Paxos Functions
     void prepareBallot();
-    void forwardBallot(std::string transaction);
-    void acceptBallot();
-    void decideBallot(Block* newBlock);
+    void forwardRequest(std::string transaction);
+    void acceptRequests();
+    void decideRequest(Block* newBlock);
 
     // Returns true if new ballot is higher than current, false if not
     inline bool isDeeper(int ballot, int PID)
@@ -82,6 +85,7 @@ public:
 
     // Paxos Functions
     void startPaxos(std::string transaction);
+    inline int getLeader() { return leaderPID; }
 
     // Printing Functions
     inline std::string printBlog() { return blog->viewAll(); }

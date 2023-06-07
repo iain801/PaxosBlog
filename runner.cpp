@@ -87,12 +87,14 @@ void userInput(PaxosHandler* server)
             std::cout << server->printQueue() << std::endl;
         }
         else if (opType == "post") {
-            // TODO: create a post <OP::POST, username, title, content>
-            std::cout << "Feature not complete" << std::endl;
+            std::ostringstream ss;
+            ss << "POST, " << msgVector[0] << ", " << msgVector[1] << ", " << msgVector[2];
+            server->startPaxos(ss.str());
         }
         else if (opType == "comment") {
-            // TODO: create a comment <OP::COMMENT, username, title, content>
-            std::cout << "Feature not complete" << std::endl;
+            std::ostringstream ss;
+            ss << "COMMENT, " << msgVector[0] << ", " << msgVector[1] << ", " << msgVector[2];
+            server->startPaxos(ss.str());
         }
         else if (opType == "test") {
             std::string str = msgVector.front();
@@ -101,7 +103,15 @@ void userInput(PaxosHandler* server)
                 server->sendMessage(std::stoi(s), str);
             }
         }
-        else if (opType == "getLinks") {
+        else if (opType == "leader") {
+            int leader = server->getLeader();
+            std::cout << "Leader: ";
+            if (leader == -1)
+                std::cout << "Not Elected\n" << std::endl;
+            else   
+                std::cout << leader << std::endl << std::endl;
+        }
+        else if (opType == "links") {
             std::cout << server->printConnections() << std::endl;
         }
         else {
