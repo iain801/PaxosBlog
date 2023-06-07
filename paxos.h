@@ -45,7 +45,8 @@ class PaxosHandler {
     
     // Paxos Functions
     void prepareBallot();
-    void acceptBallot(std::string transaction);
+    void forwardBallot(std::string transaction);
+    void acceptBallot();
     void decideBallot();
 
     // Returns true if new ballot is higher than current, false if not
@@ -63,6 +64,9 @@ class PaxosHandler {
     inline int numClients() { return inSocks.size(); }
     inline int majoritySize() { return (int) ceil(numClients() / 2.0); }
     inline bool isMajority(int votes) { return votes >= majoritySize(); }
+    inline OP toOP(std::string s) { return (s == "POST") ? OP::POST : OP::COMMENT; }
+
+    std::vector<std::string> split(std::string msg);
 
 public:
     PaxosHandler(int PID);
@@ -77,7 +81,10 @@ public:
     void broadcast(std::string msg);
     inline void sendMessage(int target, std::string msg) { broadcast({target}, msg); }
 
-    // Blog Functions
+    // Paxos Functions
+    void startPaxos(std::string transaction);
+
+    // Printing Functions
     inline std::string printBlog() { return blog->viewAll(); }
     inline std::string printByUser(std::string user) { return blog->viewByUser(user); }
     inline std::string printComments(std::string title) {return blog->viewComments(title); }

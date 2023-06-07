@@ -126,12 +126,8 @@ void PaxosHandler::msgListener(int clientSock)
     }
 }
 
-void PaxosHandler::msgHandler(std::string msg, int clientSock)
-{   
-    // 3 second message passing delay
-    std::this_thread::sleep_for(std::chrono::seconds(3));
-    std::cout << "RECIEVED: " << msg << std::endl;
-
+std::vector<std::string> PaxosHandler::split(std::string msg)
+{
     // Parse message into vector
     std::vector<std::string> msgVector;
     size_t pos = 0;
@@ -145,6 +141,18 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
         msg.erase(0, pos + delimiter.length());
     }
     msgVector.push_back(msg.substr(0, msg.length()));
+
+    return msgVector;
+}
+
+void PaxosHandler::msgHandler(std::string msg, int clientSock)
+{   
+    // 3 second message passing delay
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+    std::cout << "RECIEVED: " << msg << std::endl;
+
+    // Parse message into vector
+    auto msgVector = split(msg);
 
     // Pop operation type off front
     std::string opType = msgVector.front();
@@ -175,7 +183,7 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
 
         if (inDepth >= blog->depth() && isDeeper(inBallot, inPID)) {
             ballotNum = inBallot;
-            leaderPID = inPID;
+            // leaderPID = inPID;
 
             std::ostringstream ss;
             ss << "PROMISE, " << inBallot << ", " << inPID << ", " << inDepth;
@@ -185,6 +193,16 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
     else if (opType == "PROMISE") {
         int inBallot = std::stoi(msgVector[0]);
         ++ballotVotes[inBallot];
+    }
+    else if (opType == "I WIN") {
+        leaderPID = std::stoi(msgVector.back());
+    }
+    else if (opType == "FORWARD") {
+        int clientPID = std::stoi(msgVector.back());
+        msgVector.pop_back();
+        std::ostringstream ss;
+        ss << msgVector[0] << ", " << msgVector[1] << ", " << msgVector[2] << ", " << msgVector[3];
+        queue->push(ss.str());
     }
 }
 
@@ -295,14 +313,67 @@ void PaxosHandler::prepareBallot()
     broadcast(ss.str());
 
     int timer = 0;
-    while (isMajority(ballotVotes[thisBallot])) {
+    while (!isMajority(ballotVotes[thisBallot])) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         
         // timeout timer
-        if(++timer > TIME_OUT) { return; }
+        if(++timer > TIME_OUT) { 
+            std::cout << "Timing out ballot <" << thisBallot << ", " << myPID << std::endl;
+            ballotVotes.erase(ballotVotes.find(thisBallot));
+            return; 
+        }
+        if(leaderPID != -1) {
+            std::cout << "Another leader elected: " << leaderPID << std::endl;
+            ballotVotes.erase(ballotVotes.find(thisBallot));
+            return; 
+        }
     }
+
+    ballotVotes.erase(ballotVotes.find(thisBallot));
 
     // Won election
     leaderPID = myPID;
 
+    std::ostringstream iwin;
+    iwin << "I WIN, " << thisBallot << ", " << myPID;
+
+    broadcast(iwin.str());
+
+    std::thread acceptHandler(acceptBallot, this);
+}
+
+void PaxosHandler::startPaxos(std::string transaction)
+{
+    // Wait until successful leader election
+    while (leaderPID == -1) {
+        prepareBallot();
+    }
+
+    if (leaderPID == myPID) {
+        queue->push(transaction);
+    }
+    else {
+        forwardBallot(transaction);
+    }
+
+}
+
+void PaxosHandler::forwardBallot(std::string transaction)
+{
+    std::ostringstream ss;
+    ss << "FORWARD, " << ", " << transaction;
+
+    sendMessage(leaderPID, ss.str());
+}
+
+void PaxosHandler::acceptBallot()
+{   
+    while (leaderPID == myPID) {
+        auto transaction = queue->pop();
+        auto transArray = split(transaction);
+        Block* newBlock = blog->makeBlock(toOP(transArray[0]), transArray[1], transArray[2], transArray[3]);
+        int currentBallot = ++ballotNum;
+        
+        // TODO: send accept message and wait for replies
+    }
 }
