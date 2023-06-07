@@ -13,6 +13,7 @@ Block::Block(std::string prevHash, OP type, std::string user,
 std::string title, std::string content) 
 : prevHash(prevHash), type(type), user(user), title(title), content(content)
 {
+    prev = nullptr;
     setHash();
 }
 
@@ -120,6 +121,8 @@ Block* Blockchain::makeBlock(OP type, std::string user, std::string title, std::
 
 int Blockchain::addBlock(Block* newBlock) 
 {   
+    if(!newBlock)
+        return 0;
     if(tail) {
         if(newBlock->getPrevHash() == tail->getHash()) {
             if(newBlock->setPrev(tail)) {
