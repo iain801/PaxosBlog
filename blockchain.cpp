@@ -9,27 +9,21 @@
 #include <stack>
 #include <iostream>
 
-Blockchain::Block::Block(Block* prev, OP type, std::string user, 
+Block::Block(std::string prevHash, OP type, std::string user, 
 std::string title, std::string content) 
-: prev(prev), type(type), user(user), title(title), content(content)
+: prevHash(prevHash), type(type), user(user), title(title), content(content)
 {
-    if (prev) {
-        prevHash = prev->hash;
-    }
-    else {
-        prevHash = "00000000000000000000000000000000";
-    }
     setHash();
 }
 
-std::string Blockchain::Block::getOperation() const
+std::string Block::getOperation() const
 {
     std::ostringstream ss;
     ss << getType() << ", " << getUser() << ", " << getTitle() << ", " << getContent();
     return ss.str();
 }
 
-std::string Blockchain::Block::str() const
+std::string Block::str() const
 {
     std::ostringstream ss;
     ss << '(' << prevHash << ", " << getType() << ", " << getUser() 
@@ -37,7 +31,7 @@ std::string Blockchain::Block::str() const
     return ss.str();
 }
 
-int Blockchain::Block::setHash() 
+int Block::setHash() 
 {   
     // setup random nonce generator
     std::random_device            rand_dev;
@@ -47,13 +41,13 @@ int Blockchain::Block::setHash()
     // reset nonce and rehash until leading digit is 1 or 0 (3-bits)
     do {
         nonce = dist(gen);
-        hash = getHash();
+        hash = genHash();
     } while (hash[0] > '1');
 
     return nonce;
 }
 
-std::string Blockchain::Block::getHash()
+std::string Block::genHash()
 {   
     // compile data 
     std::ostringstream ss;
@@ -63,7 +57,7 @@ std::string Blockchain::Block::getHash()
 
 /* https://stackoverflow.com/a/10632725 
     Updated to use non-deprecated function SHA256*/
-std::string Blockchain::Block::sha256(const std::string str)
+std::string Block::sha256(const std::string str)
 {
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256((const unsigned char*) str.c_str(), str.length(), hash);
@@ -77,6 +71,28 @@ std::string Blockchain::Block::sha256(const std::string str)
     return ss.str();
 }
 
+bool Block::validNonce()
+{
+    return (hash[0] <= '1') && (getHash() == hash);
+}
+
+int Block::setPrev(Block* prev)
+{  
+    if(prev) {
+        if(prev->hash == this->prevHash) {
+            this->prev = prev;
+            return 1;
+        }
+    }
+    else {
+        if(this->prevHash == "00000000000000000000000000000000") {
+            this->prev = prev;
+            return 1;
+        }
+    }
+    return 0;
+}
+
 Blockchain::Blockchain() : tail(nullptr) {}
 
 Blockchain::~Blockchain()
@@ -88,17 +104,42 @@ Blockchain::~Blockchain()
     }
 }
 
-int Blockchain::addBlock(OP type, std::string user, std::string title, std::string content)
+Block* Blockchain::makeBlock(OP type, std::string user, std::string title, std::string content)
 {
     if (type == OP::POST || findPost(title)) {
-        Block* newBlock = new Block(tail, type, user, title, content);
-        tail = newBlock;
-        return 0;
+        std::string hash = "00000000000000000000000000000000";
+        
+        if(tail)
+            hash = tail->getHash();
+            
+        Block* newBlock = new Block(hash, type, user, title, content);
+        return newBlock;
     }
-    return 1;
+    return nullptr;
 }
 
-Blockchain::Block* Blockchain::findPost(std::string title) 
+int Blockchain::addBlock(Block* newBlock) 
+{   
+    if(tail) {
+        if(newBlock->getPrevHash() == tail->getHash()) {
+            if(newBlock->setPrev(tail)) {
+                tail = newBlock;
+                return 1;
+            }
+        }
+    }
+    else {
+        if(newBlock->getPrevHash() == "00000000000000000000000000000000") {
+            if(newBlock->setPrev(tail)) {
+                tail = newBlock;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+Block* Blockchain::findPost(std::string title) 
 {
     Block* curr = tail;
     while (curr) {

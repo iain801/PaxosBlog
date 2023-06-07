@@ -112,6 +112,19 @@ void userInput(PaxosHandler* server)
 
 int main(int argc, char** argv)
 {
+    Blockchain blog;
+    auto newBlock1 = blog.makeBlock(OP::POST, "ixw", "Hello World", "It's a nice day today");
+    
+    auto newBlock2 = blog.makeBlock(OP::COMMENT, "ixw", "Hello World", "No it's cloudy");
+    
+    auto newBlock3 = blog.makeBlock(OP::COMMENT, "abm", "Hello World", "It's raining today!");
+    blog.addBlock(newBlock1);
+    blog.addBlock(newBlock2);
+    blog.addBlock(newBlock3);
+
+    std::cout << blog.viewAll() << std::endl;
+    std::cout << blog.viewComments("Hello World") << std::endl;
+
     PaxosHandler* server = new PaxosHandler(std::stoi(argv[1]));
 
     std::thread input(userInput, server);

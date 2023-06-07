@@ -154,6 +154,9 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
 
         int target = std::stoi(msgVector.front());
         
+        if(target == leaderPID)
+            leaderPID = -1;
+            
         // Close outgoing socket
         // int clientOut = outSocks[target];
         // close(clientOut);
@@ -301,7 +304,5 @@ void PaxosHandler::prepareBallot()
 
     // Won election
     leaderPID = myPID;
-
-
 
 }
