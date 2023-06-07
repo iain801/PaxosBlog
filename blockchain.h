@@ -26,6 +26,12 @@ class Block {
             std::string title,
             std::string content);
 
+        Block(std::string prevHash,
+            std::string type,
+            std::string user,
+            std::string title,
+            std::string content);
+
         inline Block* getPrev() const { return prev; }
         int setPrev(Block* prev);
 
@@ -37,13 +43,15 @@ class Block {
 
         inline std::string getHash() const { return hash; }
 
+        inline int getNonce() const { return nonce; }
+
         inline std::string getPrevHash() const { return prevHash; }
 
         inline OP isPost() const { return type; }
 
         inline std::string getType() const { return type?"POST":"COMMENT"; }
 
-        bool validNonce();
+        bool validNonce(int nonce);
 
         std::string getOperation() const;
         std::string str() const;
@@ -64,7 +72,7 @@ public:
 
     int addBlock(Block* newBlock);
 
-    Block* makeBlock(OP type,
+    Block* makeBlock(std::string type,
         std::string user,
         std::string title,
         std::string content);

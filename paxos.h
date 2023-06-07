@@ -47,7 +47,7 @@ class PaxosHandler {
     void prepareBallot();
     void forwardBallot(std::string transaction);
     void acceptBallot();
-    void decideBallot();
+    void decideBallot(Block* newBlock);
 
     // Returns true if new ballot is higher than current, false if not
     inline bool isDeeper(int ballot, int PID)
@@ -64,7 +64,6 @@ class PaxosHandler {
     inline int numClients() { return inSocks.size(); }
     inline int majoritySize() { return (int) ceil(numClients() / 2.0); }
     inline bool isMajority(int votes) { return votes >= majoritySize(); }
-    inline OP toOP(std::string s) { return (s == "POST") ? OP::POST : OP::COMMENT; }
 
     std::vector<std::string> split(std::string msg);
 

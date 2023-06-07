@@ -145,67 +145,6 @@ std::vector<std::string> PaxosHandler::split(std::string msg)
     return msgVector;
 }
 
-void PaxosHandler::msgHandler(std::string msg, int clientSock)
-{   
-    // 3 second message passing delay
-    std::this_thread::sleep_for(std::chrono::seconds(3));
-    std::cout << "RECIEVED: " << msg << std::endl;
-
-    // Parse message into vector
-    auto msgVector = split(msg);
-
-    // Pop operation type off front
-    std::string opType = msgVector.front();
-    msgVector.erase(msgVector.begin());
-
-    if (opType == "DISCONNECT") {
-
-        int target = std::stoi(msgVector.front());
-        
-        if(target == leaderPID)
-            leaderPID = -1;
-            
-        // Close outgoing socket
-        // int clientOut = outSocks[target];
-        // close(clientOut);
-        outSocks.erase(outSocks.find(target));
-        
-        // Close incoming socket
-        int clientIn = inSocks[target];
-        close(clientIn);
-        inSocks.erase(inSocks.find(target));
-
-    }
-    else if (opType == "PREPARE") {
-        int inBallot = std::stoi(msgVector[0]);
-        int inPID = std::stoi(msgVector[1]);
-        int inDepth = std::stoi(msgVector[2]);
-
-        if (inDepth >= blog->depth() && isDeeper(inBallot, inPID)) {
-            ballotNum = inBallot;
-            // leaderPID = inPID;
-
-            std::ostringstream ss;
-            ss << "PROMISE, " << inBallot << ", " << inPID << ", " << inDepth;
-            sendMessage(inPID, ss.str());
-        }
-    }
-    else if (opType == "PROMISE") {
-        int inBallot = std::stoi(msgVector[0]);
-        ++ballotVotes[inBallot];
-    }
-    else if (opType == "I WIN") {
-        leaderPID = std::stoi(msgVector.back());
-    }
-    else if (opType == "FORWARD") {
-        int clientPID = std::stoi(msgVector.back());
-        msgVector.pop_back();
-        std::ostringstream ss;
-        ss << msgVector[0] << ", " << msgVector[1] << ", " << msgVector[2] << ", " << msgVector[3];
-        queue->push(ss.str());
-    }
-}
-
 void PaxosHandler::interconnect(int newPID)
 {           
     if(newPID == myPID) {
@@ -302,6 +241,120 @@ std::string PaxosHandler::printConnections()
     return ss.str();
 }
 
+void PaxosHandler::msgHandler(std::string msg, int clientSock)
+{   
+    // 3 second message passing delay
+    std::this_thread::sleep_for(std::chrono::seconds(3));
+    std::cout << "RECIEVED: " << msg << std::endl;
+
+    // Parse message into vector
+    auto msgVector = split(msg);
+
+    // Pop operation type off front
+    std::string opType = msgVector.front();
+    msgVector.erase(msgVector.begin());
+
+    int inBallot, inPID, inDepth;
+
+    if (opType == "DISCONNECT") {
+
+        inPID = std::stoi(msgVector.front());
+        
+        if(inPID == leaderPID)
+            leaderPID = -1;
+            
+        // Close outgoing socket
+        // int clientOut = outSocks[inPID];
+        // close(clientOut);
+        outSocks.erase(outSocks.find(inPID));
+        
+        // Close incoming socket
+        int clientIn = inSocks[inPID];
+        close(clientIn);
+        inSocks.erase(inSocks.find(inPID));
+
+    }
+    else if (opType == "PREPARE") {
+        inBallot = std::stoi(msgVector[0]);
+        inPID = std::stoi(msgVector[1]);
+        inDepth = std::stoi(msgVector[2]);
+
+        if (inDepth >= blog->depth() && isDeeper(inBallot, inPID)) {
+            ballotNum = inBallot;
+
+            std::ostringstream ss;
+            ss << "PROMISE, " << inBallot << ", " << inPID << ", " << inDepth;
+            sendMessage(inPID, ss.str());
+        }
+    }
+    else if (opType == "PROMISE" || opType == "ACCEPTED") {
+        inBallot = std::stoi(msgVector[0]);
+        if(ballotVotes.find(inBallot) != ballotVotes.end())
+            ++ballotVotes[inBallot];
+    }
+    else if (opType == "ACCEPT") {
+        inBallot = std::stoi(msgVector[0]);
+        inPID = std::stoi(msgVector[1]);
+        inDepth = std::stoi(msgVector[2]);
+        msgVector.erase(msgVector.begin(), msgVector.begin() + 3);
+
+        if (inDepth >= blog->depth() && isDeeper(inBallot, inPID)) {
+            ballotNum = inBallot;
+
+            Block* newBlock = blog->makeBlock(msgVector[1], msgVector[2], msgVector[3], msgVector[4]);
+            if (newBlock->getPrevHash() != msgVector[0]) {
+                std::cout << "Proposed Block <" << inBallot << ", " << "> has incorrect hash pointer" << std::endl;
+                return;
+            }
+
+            if(!newBlock->validNonce(std::stoi(msgVector[5]))) {
+                std::cout << "Proposed Block <" << inBallot << ", " << "> has invalid nonce" << std::endl;
+                return;
+            }
+            // TODO: Add lock for accepting
+            std::ostringstream ss;
+            ss << "ACCEPT, " << inBallot << ", " << inPID << ", " << inDepth;
+            sendMessage(inPID, ss.str());
+        }
+    }
+    else if (opType == "DECIDE") {
+        inPID = std::stoi(msgVector[0]);
+        inDepth = std::stoi(msgVector[1]);
+        msgVector.erase(msgVector.begin(), msgVector.begin() + 2);
+
+        if (inDepth >= blog->depth()) {
+            ballotNum = inBallot;
+
+            Block* newBlock = blog->makeBlock(msgVector[1], msgVector[2], msgVector[3], msgVector[4]);
+            if (newBlock->getPrevHash() != msgVector[0]) {
+                std::cout << "Decided Block <" << inBallot << ", " << "> has incorrect hash pointer" << std::endl;
+                return;
+            }
+
+            if(!newBlock->validNonce(std::stoi(msgVector[5]))) {
+                std::cout << "Proposed Block <" << inBallot << ", " << "> has invalid nonce" << std::endl;
+                return;
+            }
+            
+            blog->addBlock(newBlock);
+        }
+    }
+    else if (opType == "I WIN") {
+        leaderPID = std::stoi(msgVector.back());
+    }
+    else if (opType == "FORWARD") {
+        inPID = std::stoi(msgVector.back());
+        msgVector.pop_back();
+
+        std::ostringstream ss;
+        ss << msgVector[0] << ", " << msgVector[1] << ", " << msgVector[2] << ", " << msgVector[3];
+        startPaxos(ss.str());
+    }
+    else {
+        std::cout << "Invalid message" << std::endl;
+    }
+}
+
 void PaxosHandler::prepareBallot() 
 {
     int thisBallot = ballotNum++;
@@ -339,7 +392,7 @@ void PaxosHandler::prepareBallot()
 
     broadcast(iwin.str());
 
-    std::thread acceptHandler(acceptBallot, this);
+    acceptBallot();
 }
 
 void PaxosHandler::startPaxos(std::string transaction)
@@ -371,9 +424,43 @@ void PaxosHandler::acceptBallot()
     while (leaderPID == myPID) {
         auto transaction = queue->pop();
         auto transArray = split(transaction);
-        Block* newBlock = blog->makeBlock(toOP(transArray[0]), transArray[1], transArray[2], transArray[3]);
-        int currentBallot = ++ballotNum;
-        
-        // TODO: send accept message and wait for replies
+        Block* newBlock = blog->makeBlock(transArray[0], transArray[1], transArray[2], transArray[3]);
+        int thisBallot = ++ballotNum;
+
+        std::ostringstream ss;
+        ss  << "ACCEPT, " << thisBallot << ", " << myPID << ", " << blog->depth() << ", "
+            << newBlock->getPrevHash() << ", " << newBlock->getType() << ", " << newBlock->getUser() 
+            << ", " << newBlock->getTitle() << ", " << newBlock->getContent() << ", " << newBlock->getNonce();
+
+        ballotVotes.emplace(thisBallot, 1);
+
+        broadcast(ss.str());
+
+        int timer = 0;
+        while (!isMajority(ballotVotes[thisBallot])) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            
+            // timeout timer
+            if(++timer > TIME_OUT) { 
+                std::cout << "Timing out ballot <" << thisBallot << ", " << myPID << std::endl;
+                ballotVotes.erase(ballotVotes.find(thisBallot));
+                return; 
+            }
+        }
+
+        ballotVotes.erase(ballotVotes.find(thisBallot));
+
+        decideBallot(newBlock);
     }
+}
+
+void PaxosHandler::decideBallot(Block* newBlock)
+{
+    std::ostringstream ss;
+    ss  << "DECIDE, " << myPID << ", " << blog->depth() << ", " << newBlock->getType() << ", " << newBlock->getUser() 
+        << ", " << newBlock->getTitle() << ", " << newBlock->getContent() << ", " << newBlock->getNonce();
+
+    broadcast(ss.str());
+
+    blog->addBlock(newBlock);
 }

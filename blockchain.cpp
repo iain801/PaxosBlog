@@ -17,6 +17,15 @@ std::string title, std::string content)
     setHash();
 }
 
+Block::Block(std::string prevHash, std::string type, std::string user, 
+std::string title, std::string content) 
+: prevHash(prevHash), user(user), title(title), content(content)
+{
+    this->type = (type=="POST") ? OP::POST : OP::COMMENT;
+    prev = nullptr;
+    setHash();
+}
+
 std::string Block::getOperation() const
 {
     std::ostringstream ss;
@@ -72,9 +81,14 @@ std::string Block::sha256(const std::string str)
     return ss.str();
 }
 
-bool Block::validNonce()
+// Sets nonce to input if valid, returns true if successful
+bool Block::validNonce(int testNonce)
 {
-    return (hash[0] <= '1') && (getHash() == hash);
+    int temp = nonce;
+    nonce = testNonce;
+    bool out = (hash[0] <= '1') && (getHash() == hash);
+    if (!out) nonce = temp;
+    return out;
 }
 
 int Block::setPrev(Block* prev)
@@ -105,9 +119,9 @@ Blockchain::~Blockchain()
     }
 }
 
-Block* Blockchain::makeBlock(OP type, std::string user, std::string title, std::string content)
+Block* Blockchain::makeBlock(std::string type, std::string user, std::string title, std::string content)
 {
-    if (type == OP::POST || findPost(title)) {
+    if (type == "POST" || findPost(title)) {
         std::string hash = "00000000000000000000000000000000";
         
         if(tail)
