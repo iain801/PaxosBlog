@@ -52,7 +52,7 @@ int Block::setHash()
     do {
         nonce = dist(gen);
         hash = genHash();
-    } while (hash[0] > '1');
+    } while (hash.front() > '1');
 
     return nonce;
 }
@@ -86,8 +86,10 @@ bool Block::validNonce(int testNonce)
 {
     int temp = nonce;
     nonce = testNonce;
-    bool out = (hash[0] <= '1') && (getHash() == hash);
-    if (!out) nonce = temp;
+    auto newHash = genHash();
+    bool out = (hash.front() <= '1');
+    if (out) hash = newHash;
+    else nonce = temp;
     return out;
 }
 

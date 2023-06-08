@@ -2,6 +2,7 @@
 #define BLOCKCHAIN_H
 
 #include <string>
+#include <atomic>
 
 enum OP{COMMENT, POST};
 class Block {
@@ -12,7 +13,7 @@ class Block {
         Block* prev;
         std::string prevHash;
         std::string hash;
-        int nonce;
+        std::atomic<int> nonce;
 
         enum OP type;
         std::string user;

@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <atomic>
+
 #include <math.h>
 
 #include <sys/socket.h>
@@ -29,9 +31,9 @@ class PaxosHandler {
     std::unordered_map<int, int> outSocks;
 
     // Paxos Variables
-    int leaderPID;
-    int ballotNum;
-    int requestNum;
+    std::atomic<int> leaderPID;
+    std::atomic<int> ballotNum;
+    std::atomic<int> requestNum;
     std::unordered_map<int, bool> acceptLocks;
     std::pair<int,int> acceptNum;
     std::pair<int, std::string> acceptVal;
@@ -65,7 +67,7 @@ class PaxosHandler {
     }
 
     inline int numClients() { return inSocks.size(); }
-    inline int majoritySize() { return (int) ceil(numClients() / 2.0); }
+    inline int majoritySize() { return (int) floor(numClients() / 2.0) + 1; }
     inline bool isMajority(int votes) { return votes >= majoritySize(); }
 
     std::vector<std::string> split(std::string msg);

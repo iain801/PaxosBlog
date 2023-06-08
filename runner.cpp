@@ -5,6 +5,7 @@
 #include <thread>
 #include <algorithm>
 #include <iostream>
+#include <atomic>
 
 // https://stackoverflow.com/a/46931770
 std::vector<std::string> split(std::string s, std::string delimiter) {
@@ -22,14 +23,85 @@ std::vector<std::string> split(std::string s, std::string delimiter) {
     return res;
 }
 
-void userInput(PaxosHandler* server)
+void handleInput(PaxosHandler* server, std::vector<std::string> msgVector, std::atomic<bool>* flag) 
+{
+    // Pop operation type off front
+    std::string opType = msgVector.front();
+    msgVector.erase(msgVector.begin());
+
+    if (opType == "crash") {
+        std::cout << "Exiting..." << std::endl;
+        *flag = false;
+        return;
+    } 
+    else if (opType == "failLink") {
+        for (auto s : msgVector) {
+            int target = std::stoi(s);
+            server->disconnect(target);
+        }
+    } 
+    else if (opType == "fixLink") {
+        for (auto s : msgVector) {
+            int target = std::stoi(s);
+            server->interconnect(target);
+        }
+    } 
+    else if (opType == "blockchain") {
+        std::cout << server->printBlockchain() << std::endl;
+    }
+    else if (opType == "blog") {
+        std::cout << server->printBlog() << std::endl;
+    }
+    else if (opType == "view") {
+        std::cout << server->printByUser(msgVector.front()) << std::endl;
+    }
+    else if (opType == "read") {
+        std::cout << server->printComments(msgVector.front()) << std::endl;
+    }
+    else if (opType == "queue") {
+        std::cout << server->printQueue() << std::endl;
+    }
+    else if (opType == "post") {
+        std::ostringstream ss;
+        ss << "POST, " << msgVector[0] << ", " << msgVector[1] << ", " << msgVector[2];
+        server->startPaxos(ss.str());
+    }
+    else if (opType == "comment") {
+        std::ostringstream ss;
+        ss << "COMMENT, " << msgVector[0] << ", " << msgVector[1] << ", " << msgVector[2];
+        server->startPaxos(ss.str());
+    }
+    else if (opType == "test") {
+        std::string str = msgVector.front();
+        msgVector.erase(msgVector.begin());
+        for (auto s : msgVector) {
+            server->sendMessage(std::stoi(s), str);
+        }
+    }
+    else if (opType == "leader") {
+        int leader = server->getLeader();
+        std::cout << "Leader: ";
+        if (leader == -1)
+            std::cout << "Not Elected\n" << std::endl;
+        else   
+            std::cout << leader << std::endl << std::endl;
+    }
+    else if (opType == "links") {
+        std::cout << server->printConnections() << std::endl;
+    }
+    else {
+        std::cout << "Invalid Command\n" << std::endl;
+    }
+}
+
+void userInput(PaxosHandler* server, std::atomic<bool>* flag)
 {   
     std::vector<std::string> msgVector;
     std::string msg;
     std::string delimiter = ",";
     size_t pos = 0;
 
-    while(true) {
+    while(*flag) {
         msgVector.clear();
         pos = 0;
 
@@ -51,94 +123,22 @@ void userInput(PaxosHandler* server)
         }
         else msgVector.push_back(msg);
 
-        // Pop operation type off front
-        std::string opType = msgVector.front();
-        msgVector.erase(msgVector.begin());
-
-        if (opType == "crash") {
-            std::cout << "Exiting..." << std::endl;
-            break;
-        } 
-        else if (opType == "failLink") {
-            for (auto s : msgVector) {
-                int target = std::stoi(s);
-                server->disconnect(target);
-            }
-        } 
-        else if (opType == "fixLink") {
-            for (auto s : msgVector) {
-                int target = std::stoi(s);
-                server->interconnect(target);
-            }
-        } 
-        else if (opType == "blockchain") {
-            std::cout << server->printBlockchain() << std::endl;
-        }
-        else if (opType == "blog") {
-            std::cout << server->printBlog() << std::endl;
-        }
-        else if (opType == "view") {
-            std::cout << server->printByUser(msgVector.front()) << std::endl;
-        }
-        else if (opType == "read") {
-            std::cout << server->printComments(msgVector.front()) << std::endl;
-        }
-        else if (opType == "queue") {
-            std::cout << server->printQueue() << std::endl;
-        }
-        else if (opType == "post") {
-            std::ostringstream ss;
-            ss << "POST, " << msgVector[0] << ", " << msgVector[1] << ", " << msgVector[2];
-            server->startPaxos(ss.str());
-        }
-        else if (opType == "comment") {
-            std::ostringstream ss;
-            ss << "COMMENT, " << msgVector[0] << ", " << msgVector[1] << ", " << msgVector[2];
-            server->startPaxos(ss.str());
-        }
-        else if (opType == "test") {
-            std::string str = msgVector.front();
-            msgVector.erase(msgVector.begin());
-            for (auto s : msgVector) {
-                server->sendMessage(std::stoi(s), str);
-            }
-        }
-        else if (opType == "leader") {
-            int leader = server->getLeader();
-            std::cout << "Leader: ";
-            if (leader == -1)
-                std::cout << "Not Elected\n" << std::endl;
-            else   
-                std::cout << leader << std::endl << std::endl;
-        }
-        else if (opType == "links") {
-            std::cout << server->printConnections() << std::endl;
-        }
-        else {
-            std::cout << "Invalid Command\n" << std::endl;
-        }
+        std::thread inputThread(&handleInput, server, msgVector, flag);
+        inputThread.detach();
     }
 }
 
 int main(int argc, char** argv)
 {
-    // Blockchain blog;
-    // auto newBlock1 = blog.makeBlock(OP::POST, "ixw", "Hello World", "It's a nice day today");
-    
-    // auto newBlock2 = blog.makeBlock(OP::COMMENT, "ixw", "Hello World", "No it's cloudy");
-    
-    // auto newBlock3 = blog.makeBlock(OP::COMMENT, "abm", "Hello World", "It's raining today!");
-    // blog.addBlock(newBlock1);
-    // blog.addBlock(newBlock2);
-    // blog.addBlock(newBlock3);
-
-    // std::cout << blog.viewAll() << std::endl;
-    // std::cout << blog.viewComments("Hello World") << std::endl;
-
     PaxosHandler* server = new PaxosHandler(std::stoi(argv[1]));
+    std::atomic<bool> flag = true;
 
-    std::thread input(userInput, server);
-    input.join();
+    std::thread input(userInput, server, &flag);
+    input.detach();
+
+    while(flag) {
+        std::this_thread::yield();
+    }
 
     delete server;
 
