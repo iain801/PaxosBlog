@@ -6,10 +6,8 @@
 
 #include <unordered_map>
 #include <string>
-#include <vector>
+#include <deque>
 #include <atomic>
-
-#include <math.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -19,7 +17,8 @@
 
 class PaxosHandler {
     
-    int myPID;
+    const int myPID;
+    const std::string sep = ", ";
 
     // "Server-Side" Variables
     int serverSock;
@@ -32,6 +31,7 @@ class PaxosHandler {
 
     // Paxos Variables
     std::atomic<int> leaderPID;
+    std::atomic<int> tempLeader;
     std::atomic<int> ballotNum;
     std::atomic<int> requestNum;
     std::unordered_map<int, bool> acceptLocks;
@@ -52,7 +52,7 @@ class PaxosHandler {
     void prepareBallot();
     void forwardRequest(std::string transaction);
     void acceptRequests();
-    void decideRequest(Block* newBlock);
+    void decideRequest(int thisRequest, Block* newBlock);
 
     // Returns true if new ballot is higher than current, false if not
     inline bool isDeeper(int ballot, int PID)
@@ -67,10 +67,10 @@ class PaxosHandler {
     }
 
     inline int numClients() { return inSocks.size(); }
-    inline int majoritySize() { return (int) floor(numClients() / 2.0) + 1; }
+    inline int majoritySize() { return (numClients() / 2) + 1; }
     inline bool isMajority(int votes) { return votes >= majoritySize(); }
 
-    std::vector<std::string> split(std::string msg);
+    std::deque<std::string> split(std::string msg);
 
 public:
     PaxosHandler(int PID);
@@ -79,9 +79,10 @@ public:
     // Connection Functions
     void interconnect(int PID);
     void disconnect(int PID);
+    void connectAll(std::deque<std::string> targets);
 
     // Message Passing Functions
-    void broadcast(std::vector<int> targets, std::string msg);
+    void broadcast(std::deque<int> targets, std::string msg);
     void broadcast(std::string msg);
     inline void sendMessage(int target, std::string msg) { broadcast({target}, msg); }
 

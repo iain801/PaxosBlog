@@ -9,9 +9,9 @@
 #include <string.h>
 
 #define BUF_SIZE 2048
-#define TIME_OUT 10
+#define TIME_OUT 15
 
-PaxosHandler::PaxosHandler(int PID) : myPID(PID), leaderPID(-1)
+PaxosHandler::PaxosHandler(int PID) : myPID(PID), leaderPID(-1), tempLeader(-1)
 {
     blog = new Blockchain();
     queue = new TSQueue();
@@ -126,19 +126,18 @@ void PaxosHandler::msgListener(int clientSock)
     }
 }
 
-std::vector<std::string> PaxosHandler::split(std::string msg)
+std::deque<std::string> PaxosHandler::split(std::string msg)
 {
-    // Parse message into vector
-    std::vector<std::string> msgVector;
+    // Parse message into deque
+    std::deque<std::string> msgVector;
     size_t pos = 0;
     
     // https://stackoverflow.com/a/14266139
-    std::string delimiter = ", ";
     std::string token;
-    while ((pos = msg.find(delimiter)) != std::string::npos) {
+    while ((pos = msg.find(sep)) != std::string::npos) {
         token = msg.substr(0, pos);
         msgVector.push_back(token);
-        msg.erase(0, pos + delimiter.length());
+        msg.erase(0, pos + sep.length());
     }
     msgVector.push_back(msg.substr(0, msg.length()));
 
@@ -183,6 +182,27 @@ void PaxosHandler::interconnect(int newPID)
     }
 }
 
+void PaxosHandler::connectAll(std::deque<std::string> targets)
+{
+    // Make requested connections
+    for(auto s : targets) {
+        int inPID = std::stoi(s);
+        interconnect(inPID);
+    }
+
+    // Continue with remaining connection messages
+    if (targets.size() > 1) {
+        std::ostringstream ss;
+        ss << "CONNECT";
+        int outPID = std::stoi(targets.front());
+        targets.pop_front();
+        for (auto s : targets) {
+            ss << sep << s;
+        }
+        sendMessage(outPID, ss.str());
+    }
+}
+
 void PaxosHandler::disconnect(int PID)
 {   
     if(inSocks.find(PID) == inSocks.end() && outSocks.find(PID) == outSocks.end()) {
@@ -203,7 +223,7 @@ void PaxosHandler::disconnect(int PID)
 
     // Send disconnect message to PID
     std::ostringstream ss;
-    ss << "DISCONNECT, " << myPID;
+    ss << "DISCONNECT" << sep << myPID;
 
     sendMessage(PID, ss.str());
 
@@ -222,7 +242,7 @@ void PaxosHandler::disconnect(int PID)
     std::cout << "Done" << std::endl;
 }
 
-void PaxosHandler::broadcast(std::vector<int> targets, std::string msg)
+void PaxosHandler::broadcast(std::deque<int> targets, std::string msg)
 {
     char out[BUF_SIZE];
     strcpy(out, msg.c_str());
@@ -234,7 +254,7 @@ void PaxosHandler::broadcast(std::vector<int> targets, std::string msg)
 
 void PaxosHandler::broadcast(std::string msg)
 {
-    std::vector<int> targets;
+    std::deque<int> targets;
     for(auto s : outSocks) {
         targets.push_back(s.first);
     }
@@ -261,12 +281,12 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
     std::this_thread::sleep_for(std::chrono::seconds(3));
     std::cout << "RECIEVED: " << msg << std::endl;
 
-    // Parse message into vector
+    // Parse message into deque
     auto msgVector = split(msg);
 
     // Pop operation type off front
     std::string opType = msgVector.front();
-    msgVector.erase(msgVector.begin());
+    msgVector.pop_front();
 
     int inBallot, inRequest, inPID, inDepth;
 
@@ -290,27 +310,52 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
         }
 
     }
+    else if (opType == "CONNECT") {
+        connectAll(msgVector);
+    }
     else if (opType == "PREPARE") {
-        // return if valid leader
-        if(leaderPID != -1)
-            return;
-
         inBallot = std::stoi(msgVector[0]);
         inPID = std::stoi(msgVector[1]);
         inDepth = std::stoi(msgVector[2]);
-
-        if (inDepth >= blog->depth() && isDeeper(inBallot, inPID)) {
-            ballotNum = inBallot;
-
+        
+        // return if valid leader
+        if(leaderPID != -1) {
             std::ostringstream ss;
-            ss << "PROMISE, " << inBallot << ", " << inPID << ", " << inDepth;
+            ss << "LEADER" << sep << ballotNum << sep << leaderPID << sep << blog->depth() << sep << myPID;
             sendMessage(inPID, ss.str());
+            return;
+        }
+
+        if (inDepth >= blog->depth()) {
+            if ((inBallot > ballotNum) || 
+                (inBallot == ballotNum && inPID > tempLeader)) {
+                
+                tempLeader = inPID;
+                ballotNum = inBallot;
+
+                std::ostringstream ss;
+                ss << "PROMISE" << sep << inBallot << sep << inPID << sep << inDepth << sep << myPID;
+                sendMessage(inPID, ss.str());
+            }
         }
     }
     else if (opType == "PROMISE") {
         inBallot = std::stoi(msgVector[0]);
         if(ballotVotes.find(inBallot) != ballotVotes.end())
             ++ballotVotes[inBallot];
+    }
+    else if (opType == "LEADER") {
+        inBallot = std::stoi(msgVector[0]);
+        inPID = std::stoi(msgVector[1]);
+        inDepth = std::stoi(msgVector[2]);
+        if (inDepth >= blog->depth()) {
+            if ((leaderPID == -1) || (inBallot > ballotNum) || 
+                (inBallot == ballotNum && inPID > leaderPID)) {
+                
+                leaderPID = inPID;
+                ballotNum = inBallot;
+            }
+        }
     }
     else if (opType == "ACCEPTED") {
         inRequest = std::stoi(msgVector[0]);
@@ -326,19 +371,19 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
         if(acceptLocks.find(inRequest) == acceptLocks.end())
             acceptLocks.emplace(inRequest, false);
 
-        if (inDepth >= blog->depth() && isDeeper(inRequest, inPID)) {
-            ballotNum = inRequest;
+        if (inDepth >= blog->depth() && requestNum <= inRequest) {
+            requestNum = inRequest;
 
             Block* newBlock = blog->makeBlock(msgVector[1], msgVector[2], msgVector[3], msgVector[4]);
 
             if(!newBlock->validNonce(std::stoi(msgVector[5]))) {
-                std::cout << "Proposed Block <" << inRequest << ", " << inPID << "> has invalid nonce" << std::endl;
+                std::cout << "Proposed Block <" << inRequest << sep << inPID << "> has invalid nonce" << std::endl;
                 delete newBlock;
                 return;
             }
 
             if (newBlock->getPrevHash() != msgVector[0]) {
-                std::cout << "Proposed Block <" << inRequest << ", " << inPID << "> has incorrect hash pointer" << std::endl;
+                std::cout << "Proposed Block <" << inRequest << sep << inPID << "> has incorrect hash pointer" << std::endl;
                 std::cout << "Expected " << newBlock->getPrevHash() << " received " << msgVector[0] << std::endl;
                 delete newBlock;
                 return;
@@ -352,16 +397,27 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
             acceptLocks[inRequest] = true; // Lock from accepting any further requests w/ that number
 
             std::ostringstream ss;
-            ss << "ACCEPTED, " << inRequest << ", " << inPID << ", " << inDepth;
+            ss << "ACCEPTED" << sep << inRequest << sep << inPID << sep << inDepth << sep << myPID;
             sendMessage(inPID, ss.str());
         }
     }
     else if (opType == "DECIDE") {
-        inPID = std::stoi(msgVector[0]);
-        inDepth = std::stoi(msgVector[1]);
-        msgVector.erase(msgVector.begin(), msgVector.begin() + 2);
+        inRequest = std::stoi(msgVector[0]);
+        inPID = std::stoi(msgVector[1]);
+        inDepth = std::stoi(msgVector[2]);
+        msgVector.erase(msgVector.begin(), msgVector.begin() + 3);
+
+        // Pop off prev_hash
+        msgVector.pop_front();
 
         if (inDepth >= blog->depth()) {
+            if ((leaderPID == -1) || (inRequest > requestNum) || 
+                (inRequest == requestNum && inPID > leaderPID)) {
+                
+                leaderPID = inPID;
+                requestNum = inRequest;
+            }
+
             Block* newBlock = blog->makeBlock(msgVector[0], msgVector[1], msgVector[2], msgVector[3]);
     
             if(!newBlock->validNonce(std::stoi(msgVector[4]))) {
@@ -378,14 +434,29 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
         }
     }
     else if (opType == "I WIN") {
-        leaderPID = std::stoi(msgVector.back());
+        inBallot = std::stoi(msgVector[0]);
+        inPID = std::stoi(msgVector[1]);
+        inDepth = std::stoi(msgVector[2]);
+
+        if (inDepth >= blog->depth()) {
+            if ((leaderPID == -1) || (inBallot > ballotNum) || 
+                (inBallot == ballotNum && inPID > leaderPID)) {
+                
+                leaderPID = inPID;
+                ballotNum = inBallot;
+            }
+        }
     }
     else if (opType == "FORWARD") {
         inPID = std::stoi(msgVector[0]);
-        msgVector.erase(msgVector.begin());
-
+        msgVector.pop_front();
+        if (leaderPID != -1 && leaderPID != myPID) {
+            std::ostringstream ss;
+            ss << "LEADER" << sep << ballotNum << sep << leaderPID << sep << blog->depth() << sep << myPID;
+            sendMessage(inPID, ss.str());
+        }
         std::ostringstream ss;
-        ss << msgVector[0] << ", " << msgVector[1] << ", " << msgVector[2] << ", " << msgVector[3];
+        ss << msgVector[0] << sep << msgVector[1] << sep << msgVector[2] << sep << msgVector[3];
         startPaxos(ss.str());
     }
     else {
@@ -397,7 +468,7 @@ void PaxosHandler::prepareBallot()
 {
     int thisBallot = ++ballotNum;
     std::ostringstream ss;
-    ss << "PREPARE, " << thisBallot << ", " << myPID << ", " << blog->depth();
+    ss << "PREPARE" << sep << thisBallot << sep << myPID << sep << blog->depth();
 
     ballotVotes.emplace(thisBallot, 1);
 
@@ -409,7 +480,7 @@ void PaxosHandler::prepareBallot()
         
         // timeout timer
         if(++timer > TIME_OUT) { 
-            std::cout << "Timing out ballot <" << thisBallot << ", " << myPID << ">" << std::endl;
+            std::cout << "Timing out ballot <" << thisBallot << sep << myPID << ">" << std::endl;
             ballotVotes.erase(ballotVotes.find(thisBallot));
             return; 
         }
@@ -425,10 +496,10 @@ void PaxosHandler::prepareBallot()
     // Won election
     if(leaderPID == -1) {
         leaderPID = myPID;
-        std::cout << "Won Election <" << thisBallot << ", " << leaderPID << ">" << std::endl;
+        std::cout << "Won Election <" << thisBallot << sep << leaderPID << ">" << std::endl;
 
         std::ostringstream iwin;
-        iwin << "I WIN, " << thisBallot << ", " << myPID;
+        iwin << "I WIN" << sep << thisBallot << sep << myPID << sep << blog->depth();
 
         broadcast(iwin.str());
 
@@ -442,6 +513,7 @@ void PaxosHandler::startPaxos(std::string transaction)
     // Wait until successful leader election
     while (leaderPID == -1) {
         prepareBallot();
+        std::this_thread::sleep_for(std::chrono::seconds(6));
     }
 
     if (leaderPID == myPID) {
@@ -456,7 +528,7 @@ void PaxosHandler::startPaxos(std::string transaction)
 void PaxosHandler::forwardRequest(std::string transaction)
 {
     std::ostringstream ss;
-    ss << "FORWARD, " << myPID << ", " << transaction;
+    ss << "FORWARD" << sep << myPID << sep << transaction;
 
     sendMessage(leaderPID, ss.str());
 }
@@ -470,9 +542,8 @@ void PaxosHandler::acceptRequests()
         int thisRequest = ++requestNum;
 
         std::ostringstream ss;
-        ss  << "ACCEPT, " << thisRequest << ", " << myPID << ", " << blog->depth() << ", "
-            << newBlock->getPrevHash() << ", " << newBlock->getType() << ", " << newBlock->getUser() 
-            << ", " << newBlock->getTitle() << ", " << newBlock->getContent() << ", " << newBlock->getNonce();
+        ss  << "ACCEPT" << sep << thisRequest << sep << myPID << sep << blog->depth() << sep
+            << newBlock->str(false);
 
         requestVotes.emplace(thisRequest, 1);
 
@@ -484,7 +555,7 @@ void PaxosHandler::acceptRequests()
             
             // timeout timer
             if(++timer > TIME_OUT) { 
-                std::cout << "Timing out request <" << thisRequest << ", " << myPID << ">" << std::endl;
+                std::cout << "Timing out request <" << thisRequest << sep << myPID << ">" << std::endl;
                 requestVotes.erase(requestVotes.find(thisRequest));
                 delete newBlock;
                 newBlock = nullptr;
@@ -498,16 +569,15 @@ void PaxosHandler::acceptRequests()
 
         requestVotes.erase(requestVotes.find(thisRequest));
 
-        std::cout << "Decided request <" << thisRequest << ", " << leaderPID << ">" << std::endl;
-        decideRequest(newBlock);
+        std::cout << "Decided request <" << thisRequest << sep << leaderPID << ">" << std::endl;
+        decideRequest(thisRequest, newBlock);
     }
 }
 
-void PaxosHandler::decideRequest(Block* newBlock)
+void PaxosHandler::decideRequest(int thisRequest, Block* newBlock)
 {
     std::ostringstream ss;
-    ss  << "DECIDE, " << myPID << ", " << blog->depth() << ", " << newBlock->getType() << ", " << newBlock->getUser() 
-        << ", " << newBlock->getTitle() << ", " << newBlock->getContent() << ", " << newBlock->getNonce();
+    ss  << "DECIDE" << sep << thisRequest << sep << myPID << sep << blog->depth() << sep << newBlock->str(false);
 
     broadcast(ss.str());
 

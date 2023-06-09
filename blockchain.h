@@ -21,6 +21,9 @@ class Block {
         std::string content;
 
     public:    
+
+        static const std::string zeroHash;
+
         Block(std::string prevHash,
             OP type,
             std::string user,
@@ -55,7 +58,7 @@ class Block {
         bool validNonce(int nonce);
 
         std::string getOperation() const;
-        std::string str() const;
+        std::string str(bool paren=true) const;
 
     };
 

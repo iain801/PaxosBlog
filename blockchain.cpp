@@ -7,7 +7,8 @@
 #include <openssl/sha.h>
 
 #include <stack>
-#include <iostream>
+
+const std::string Block::zeroHash = "0000000000000000000000000000000000000000000000000000000000000000";
 
 Block::Block(std::string prevHash, OP type, std::string user, 
 std::string title, std::string content) 
@@ -33,11 +34,13 @@ std::string Block::getOperation() const
     return ss.str();
 }
 
-std::string Block::str() const
+std::string Block::str(bool paren) const
 {
     std::ostringstream ss;
-    ss << '(' << prevHash << ", " << getType() << ", " << getUser() 
-        << ", " << getTitle() << ", " << getContent() << ", " << nonce << ')';
+    if (paren) ss << '(';
+    ss << prevHash << ", " << getType() << ", " << getUser() 
+        << ", " << getTitle() << ", " << getContent() << ", " << nonce;
+    if (paren) ss << ')';
     return ss.str();
 }
 
@@ -102,7 +105,7 @@ bool Block::setPrev(Block* prev)
         }
     }
     else {
-        if(this->prevHash == "00000000000000000000000000000000") {
+        if(this->prevHash == zeroHash) {
             this->prev = prev;
             return true;
         }
@@ -124,7 +127,7 @@ Blockchain::~Blockchain()
 Block* Blockchain::makeBlock(std::string type, std::string user, std::string title, std::string content)
 {
     if (type == "POST" || findPost(title)) {
-        std::string hash = "00000000000000000000000000000000";
+        std::string hash = Block::zeroHash;
         
         if(tail)
             hash = tail->getHash();
@@ -148,7 +151,7 @@ bool Blockchain::addBlock(Block* newBlock)
         }
     }
     else {
-        if(newBlock->getPrevHash() == "00000000000000000000000000000000") {
+        if(newBlock->getPrevHash() == Block::zeroHash) {
             if(newBlock->setPrev(tail)) {
                 tail = newBlock;
                 return true;

@@ -8,10 +8,10 @@
 #include <atomic>
 
 // https://stackoverflow.com/a/46931770
-std::vector<std::string> split(std::string s, std::string delimiter) {
+std::deque<std::string> split(std::string s, std::string delimiter) {
     size_t pos_start = 0, pos_end, delim_len = delimiter.length();
     std::string token;
-    std::vector<std::string> res;
+    std::deque<std::string> res;
 
     while ((pos_end = s.find(delimiter, pos_start)) != std::string::npos) {
         token = s.substr (pos_start, pos_end - pos_start);
@@ -23,7 +23,7 @@ std::vector<std::string> split(std::string s, std::string delimiter) {
     return res;
 }
 
-void handleInput(PaxosHandler* server, std::vector<std::string> msgVector, std::atomic<bool>* flag) 
+void handleInput(PaxosHandler* server, std::deque<std::string> msgVector, std::atomic<bool>* flag) 
 {
     // Pop operation type off front
     std::string opType = msgVector.front();
@@ -45,6 +45,9 @@ void handleInput(PaxosHandler* server, std::vector<std::string> msgVector, std::
             int target = std::stoi(s);
             server->interconnect(target);
         }
+    } 
+    else if (opType == "connect") {
+        server->connectAll(msgVector);
     } 
     else if (opType == "blockchain") {
         std::cout << server->printBlockchain() << std::endl;
@@ -96,7 +99,7 @@ void handleInput(PaxosHandler* server, std::vector<std::string> msgVector, std::
 
 void userInput(PaxosHandler* server, std::atomic<bool>* flag)
 {   
-    std::vector<std::string> msgVector;
+    std::deque<std::string> msgVector;
     std::string msg;
     std::string delimiter = ",";
     size_t pos = 0;
@@ -109,7 +112,7 @@ void userInput(PaxosHandler* server, std::atomic<bool>* flag)
         // std::remove_if(msg.begin(), msg.end(), isspace);
         // msg.erase(remove(msg.begin(), msg.end(), ')'), msg.end());
         
-        // Parse message into vector
+        // Parse message into deque
         // Modified from https://stackoverflow.com/a/14266139
         if ((pos = msg.find('(')) != std::string::npos) {
             // push operation and erase up to opening paretheses
@@ -118,7 +121,7 @@ void userInput(PaxosHandler* server, std::atomic<bool>* flag)
             // Remove end parentheses
             msg.pop_back();
 
-            std::vector<std::string> args = split(msg, delimiter);
+            std::deque<std::string> args = split(msg, delimiter);
             msgVector.insert(msgVector.end(), args.begin(), args.end());
         }
         else msgVector.push_back(msg);
