@@ -15,6 +15,9 @@
 
 #define BASE_PORT 8000
 
+#define BUF_SIZE 2048
+#define TIME_OUT 15
+
 class PaxosHandler {
     
     const int myPID;
@@ -34,11 +37,9 @@ class PaxosHandler {
     std::atomic<int> tempLeader;
     std::atomic<int> ballotNum;
     std::atomic<int> requestNum;
-    std::unordered_map<int, bool> acceptLocks;
-    std::pair<int,int> acceptNum;
-    std::pair<int, std::string> acceptVal;
-    std::unordered_map<int, int> ballotVotes;
-    std::unordered_map<int, int> requestVotes;
+    std::unordered_map<int, std::atomic<bool>> acceptLocks;
+    std::unordered_map<int, std::atomic<int>> ballotVotes;
+    std::unordered_map<int, std::atomic<int>> requestVotes;
     TSQueue* queue;
 
     Blockchain* blog;
@@ -53,6 +54,7 @@ class PaxosHandler {
     void forwardRequest(std::string transaction);
     void acceptRequests();
     void decideRequest(int thisRequest, Block* newBlock);
+    void catchUpNode(int clientPID, int clientDepth);
 
     // Returns true if new ballot is higher than current, false if not
     inline bool isDeeper(int ballot, int PID)
@@ -67,7 +69,8 @@ class PaxosHandler {
     }
 
     inline int numClients() { return inSocks.size(); }
-    inline int majoritySize() { return (numClients() / 2) + 1; }
+    // inline int majoritySize() { return (numClients() / 2) + 1; }
+    inline int majoritySize() { return 3; } // Hard coded for 5-node paxos
     inline bool isMajority(int votes) { return votes >= majoritySize(); }
 
     std::deque<std::string> split(std::string msg);

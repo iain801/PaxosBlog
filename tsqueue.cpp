@@ -64,4 +64,9 @@ public:
         ss << std::endl;
         return ss.str();
     }
+
+    bool empty()
+    {
+        return m_queue.empty();
+    }
 };

@@ -1,5 +1,5 @@
-OBJS	= blockchain.o paxos.o runner.o tsqueue.o
-SOURCE	= blockchain.cpp paxos.cpp runner.cpp tsqueue.cpp
+OBJS	= blockchain.o paxos.o paxos_sockets.o runner.o tsqueue.o
+SOURCE	= blockchain.cpp paxos.cpp paxos_sockets.cpp runner.cpp tsqueue.cpp
 HEADER	= blockchain.h paxos.h
 OUT		= paxos_blog.out
 CC	 	= icpx
@@ -15,6 +15,9 @@ blockchain.o: blockchain.cpp
 
 paxos.o: paxos.cpp
 	$(CC) $(FLAGS) paxos.cpp
+
+paxos_sockets.o: paxos_sockets.cpp
+	$(CC) $(FLAGS) paxos_sockets.cpp
 
 tsqueue.o: tsqueue.cpp
 	$(CC) $(FLAGS) tsqueue.cpp

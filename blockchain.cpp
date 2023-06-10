@@ -289,3 +289,20 @@ int Blockchain::depth()
     }
     return c;
 }
+
+//return string of block at given depth
+std::string Blockchain::getBlock(int depth, bool paren)
+{
+    Block* target = tail;
+    int diff = this->depth() - depth;
+
+    if (depth < 1 || diff < 0) {
+        return "Invalid depth";
+    }
+
+    for (int i=0; i<diff; ++i) {
+        target = target->getPrev();
+    }
+
+    return target->str(paren);
+}

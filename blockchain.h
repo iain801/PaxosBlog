@@ -85,6 +85,7 @@ public:
     std::string viewByUser(std::string user);
     std::string viewComments(std::string title);
     std::string str();
+    std::string getBlock(int depth, bool paren=true);
     
     int depth();
     
