@@ -33,3 +33,5 @@
 
 # VSCode Config
 .vscode/
+
+*.blog
