@@ -9,7 +9,8 @@
 
 PaxosHandler::PaxosHandler(int PID) : myPID(PID), leaderPID(-1), tempLeader(-1)
 {
-    blog = new Blockchain();
+    std::string filename = "saves/" + std::to_string(PID) + ".blog";
+    blog = new Blockchain(filename);
     queue = new TSQueue();
 
     int opt = 1;

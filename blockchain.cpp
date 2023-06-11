@@ -1,18 +1,19 @@
 #include "blockchain.h"
 
 #include <sstream>
+#include <fstream>
 #include <iomanip>
 
 #include <random>
-#include <openssl/sha.h>
-
 #include <stack>
+
+#include <openssl/sha.h>
 
 const std::string Block::zeroHash = "0000000000000000000000000000000000000000000000000000000000000000";
 
 Block::Block(std::string prevHash, OP type, std::string user, 
 std::string title, std::string content) 
-: prevHash(prevHash), type(type), user(user), title(title), content(content)
+: prevHash(prevHash), nonce(0), type(type), user(user), title(title), content(content)
 {
     prev = nullptr;
     setHash();
@@ -113,7 +114,26 @@ bool Block::setPrev(Block* prev)
     return false;
 }
 
-Blockchain::Blockchain() : tail(nullptr) {}
+Blockchain::Blockchain(std::string filename) : tail(nullptr), fname(filename) 
+{
+    std::string transaction, token;
+    std::ifstream f(filename);
+    char sep = '~';
+    while (std::getline(f, transaction, '\n')) {
+        std::vector<std::string> transVector;
+        std::istringstream tokenStream(transaction);
+        while (std::getline(tokenStream, token, sep)) {
+            transVector.push_back(token);
+        }
+        Block* newBlock = makeBlock(transVector[2], transVector[3], transVector[4], transVector[5]);
+        if(newBlock->setPrev(tail) && newBlock->validNonce(std::stoi(transVector[6]))) {
+            if(newBlock->getHash() == transVector[0]) {
+                tail = newBlock;
+            }
+        }
+    }
+    f.close();
+}
 
 Blockchain::~Blockchain()
 {
@@ -146,6 +166,7 @@ bool Blockchain::addBlock(Block* newBlock)
         if(newBlock->getPrevHash() == tail->getHash()) {
             if(newBlock->setPrev(tail)) {
                 tail = newBlock;
+                save(newBlock);
                 return true;
             }
         }
@@ -154,11 +175,24 @@ bool Blockchain::addBlock(Block* newBlock)
         if(newBlock->getPrevHash() == Block::zeroHash) {
             if(newBlock->setPrev(tail)) {
                 tail = newBlock;
+                save(newBlock);
                 return true;
             }
         }
     }
     return false;
+}
+
+void Blockchain::save(Block* newBlock)
+{
+    char sep = '~';
+    std::ostringstream ss;
+    ss << newBlock->getHash() << sep << newBlock->getPrevHash() << sep << newBlock->getType()
+        << sep << newBlock->getUser() << sep << newBlock->getTitle() << sep << newBlock->getContent()
+        << sep << newBlock->getNonce();
+    std::ofstream f(fname, std::ios_base::app);
+    f << ss.str() << '\n';
+    f.close();
 }
 
 Block* Blockchain::findPost(std::string title) 

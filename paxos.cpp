@@ -259,7 +259,7 @@ void PaxosHandler::prepareBallot()
         
         // timeout timer
         if(++timer > TIME_OUT) { 
-            std::cout << "Timing out ballot <" << thisBallot << sep << myPID << ">" << std::endl;
+            std::cout << "TIMEOUT <" << thisBallot << sep << myPID << ">" << std::endl;
             ballotVotes[thisBallot] = -1;
             return; 
         }
@@ -339,7 +339,7 @@ void PaxosHandler::acceptRequests()
             
             // timeout timer
             if(++timer > TIME_OUT) { 
-                std::cout << "Timing out request <" << thisRequest << sep << myPID << ">" << std::endl;
+                std::cout << "TIMEOUT <" << thisRequest << sep << myPID << ">" << std::endl;
                 requestVotes[thisRequest] = -1;
                 delete newBlock;
                 newBlock = nullptr;

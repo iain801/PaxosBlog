@@ -68,10 +68,12 @@ class Blockchain {
 
     Block* findPost(std::string title);
 
+    std::string fname;
+    void save(Block* newBlock);
 
 public:
 
-    Blockchain();
+    Blockchain(std::string filename);
     ~Blockchain();
 
     bool addBlock(Block* newBlock);
