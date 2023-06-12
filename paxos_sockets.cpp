@@ -54,6 +54,7 @@ PaxosHandler::~PaxosHandler()
     close(serverSock);
 
     delete blog;
+    delete queue;
 }
 
 void PaxosHandler::init()

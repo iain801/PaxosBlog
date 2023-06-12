@@ -102,7 +102,7 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
             sendMessage(inPID, ss.str());
         }
 
-        else if (myPID > tempLeader) {
+        else if ((inDepth >= blog->depth()) && (myPID > tempLeader)) {
             prepareBallot();
         }
     }
@@ -326,7 +326,7 @@ void PaxosHandler::forwardRequest(std::string transaction)
 void PaxosHandler::acceptRequests()
 {   
     while (leaderPID == myPID) {
-        auto transaction = queue->pop();
+        auto transaction = queue->top();
         auto transArray = split(transaction);
         Block* newBlock = blog->makeBlock(transArray[0], transArray[1], transArray[2], transArray[3]);
         int thisRequest = ++requestNum;
@@ -354,8 +354,10 @@ void PaxosHandler::acceptRequests()
         }
 
         // If timed out, then newBlock was freed, so we can skip to next in queue
-        if(!newBlock)
+        if(!newBlock) {
+            queue->pop();
             continue;
+        }
 
         // Wait for a bit to catch any remaining accepted messages
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
@@ -363,6 +365,8 @@ void PaxosHandler::acceptRequests()
 
         std::cout << "Decided request <" << thisRequest << sep << leaderPID << ">" << std::endl;
         decideRequest(thisRequest, newBlock);
+
+        queue->pop();
     }
 
     // Forward/restart paxos for all incompleted transactions
@@ -376,13 +380,12 @@ void PaxosHandler::decideRequest(int thisRequest, Block* newBlock)
 {
     // Isn't strictly nessecisary, but just to be safe
     std::unique_lock<std::mutex> lock(decideMutex);
+    blog->addBlock(newBlock);
 
     std::ostringstream ss;
     ss  << "DECIDE" << sep << thisRequest << sep << myPID << sep << blog->depth() << sep << newBlock->str(false);
 
     broadcast(ss.str());
-
-    blog->addBlock(newBlock);
 }
 
 void PaxosHandler::catchUpNode(int clientPID, int clientDepth)
