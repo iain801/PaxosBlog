@@ -3,10 +3,5 @@
 *.out
 *.app
 
-.o
-.tmp
-
-.blog
-
 # VSCode Config
 .vscode/
