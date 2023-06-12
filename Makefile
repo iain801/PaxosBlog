@@ -7,24 +7,26 @@ OFLAGS	= -g -O0
 FLAGS	= -c -Wall $(OFLAGS)
 LFLAGS	= -lssl -lcrypto
 
+OBJDIR	= out/
+
 all: $(OBJS)
-	$(CC) $(OFLAGS) $(OBJS) -o $(OUT) $(LFLAGS)
+	$(CC) $(OFLAGS) $(OBJDIR)*.o -o $(OUT) $(LFLAGS)
 
 blockchain.o: blockchain.cpp
-	$(CC) $(FLAGS) blockchain.cpp
+	$(CC) $(FLAGS) blockchain.cpp -o $(OBJDIR)blockchain.o
 
 paxos.o: paxos.cpp
-	$(CC) $(FLAGS) paxos.cpp
+	$(CC) $(FLAGS) paxos.cpp -o $(OBJDIR)paxos.o
 
 paxos_sockets.o: paxos_sockets.cpp
-	$(CC) $(FLAGS) paxos_sockets.cpp
+	$(CC) $(FLAGS) paxos_sockets.cpp -o $(OBJDIR)paxos_sockets.o
 
 tsqueue.o: tsqueue.cpp
-	$(CC) $(FLAGS) tsqueue.cpp
+	$(CC) $(FLAGS) tsqueue.cpp -o $(OBJDIR)tsqueue.o
 
 runner.o: runner.cpp
-	$(CC) $(FLAGS) runner.cpp
-
+	$(CC) $(FLAGS) runner.cpp -o $(OBJDIR)runner.o
 
 clean:
-	rm -f $(OBJS) $(OUT)
+	rm -f $(OUT) $(OBJDIR)*.o
+	
