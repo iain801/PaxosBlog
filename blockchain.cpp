@@ -137,6 +137,7 @@ Blockchain::Blockchain(std::string filename) : tail(nullptr), fname(filename)
 
 Blockchain::~Blockchain()
 {
+    std::unique_lock<std::mutex> lock(chainMutex);
     while (tail) {
         Block* prev = tail->getPrev();
         delete tail;
@@ -146,6 +147,7 @@ Blockchain::~Blockchain()
 
 Block* Blockchain::makeBlock(std::string type, std::string user, std::string title, std::string content)
 {
+    std::unique_lock<std::mutex> lock(chainMutex);
     if (type == "POST" || findPost(title)) {
         std::string hash = Block::zeroHash;
         
@@ -160,6 +162,7 @@ Block* Blockchain::makeBlock(std::string type, std::string user, std::string tit
 
 bool Blockchain::addBlock(Block* newBlock) 
 {   
+    std::unique_lock<std::mutex> lock(chainMutex);
     if(!newBlock)
         return false;
     if(tail) {
@@ -185,6 +188,7 @@ bool Blockchain::addBlock(Block* newBlock)
 
 void Blockchain::save(Block* newBlock)
 {
+    std::unique_lock<std::mutex> lock(saveMutex);
     char sep = '~';
     std::ostringstream ss;
     ss << newBlock->getHash() << sep << newBlock->getPrevHash() << sep << newBlock->getType()
@@ -327,6 +331,7 @@ int Blockchain::depth()
 //return string of block at given depth
 std::string Blockchain::getBlock(int depth, bool paren)
 {
+    std::unique_lock<std::mutex> lock(chainMutex);
     Block* target = tail;
     int diff = this->depth() - depth;
 

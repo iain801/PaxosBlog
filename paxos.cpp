@@ -130,13 +130,14 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
         inRequest = std::stoi(msgVector[0]);
         inPID = std::stoi(msgVector[3]);
         inDepth = std::stoi(msgVector[2]);
-
-        // if acceptor is shallower, then send the decided messages for all unknown nodes
-        if(inDepth < blog->depth()) {
-            catchUpNode(inPID, inDepth);
-        }
-        if(requestVotes[inRequest] > 0)
+        
+        if(requestVotes[inRequest] > 0) {
+            // if acceptor is shallower, then send the decided messages for all unknown nodes
+            if(inDepth < blog->depth()) {
+                catchUpNode(inPID, inDepth);
+            }
             ++requestVotes[inRequest];
+        }
         
     }
     else if (opType == "ACCEPT") {   
@@ -177,10 +178,15 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
         inDepth = std::stoi(msgVector[2]);
         msgVector.erase(msgVector.begin(), msgVector.begin() + 3);
 
-        // Pop off prev_hash
-        // msgVector.pop_front();
+        if (inDepth <= blog->depth())
+            return;
 
-        if (inDepth >= blog->depth()) {
+        while (inDepth != blog->depth() + 1) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+
+        std::unique_lock<std::mutex> lock(decideMutex);
+        if (inDepth == blog->depth() + 1) {
             if ((leaderPID == -1) || (inRequest > requestNum) || 
                 (inRequest == requestNum && inPID > leaderPID)) {
                 
@@ -351,6 +357,8 @@ void PaxosHandler::acceptRequests()
         if(!newBlock)
             continue;
 
+        // Wait for a bit to catch any remaining accepted messages
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
         requestVotes[thisRequest] = -1;
 
         std::cout << "Decided request <" << thisRequest << sep << leaderPID << ">" << std::endl;
@@ -366,6 +374,9 @@ void PaxosHandler::acceptRequests()
 
 void PaxosHandler::decideRequest(int thisRequest, Block* newBlock)
 {
+    // Isn't strictly nessecisary, but just to be safe
+    std::unique_lock<std::mutex> lock(decideMutex);
+
     std::ostringstream ss;
     ss  << "DECIDE" << sep << thisRequest << sep << myPID << sep << blog->depth() << sep << newBlock->str(false);
 
@@ -380,8 +391,8 @@ void PaxosHandler::catchUpNode(int clientPID, int clientDepth)
     
     for (int i = clientDepth + 1; i <= blog->depth(); ++i) {
         // request num of -1 to not interfere with request counting
-        ss  << "DECIDE" << sep << -1 << sep << myPID << sep 
-            << blog->depth() << sep << blog->getBlock(i, false);
+        ss  << "DECIDE" << sep << i << sep << myPID << sep 
+            << i << sep << blog->getBlock(i, false);
         sendMessage(clientPID, ss.str());
         ss.str(std::string());
         ss.clear();

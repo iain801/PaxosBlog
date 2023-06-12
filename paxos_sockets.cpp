@@ -13,6 +13,8 @@ PaxosHandler::PaxosHandler(int PID) : myPID(PID), leaderPID(-1), tempLeader(-1)
     blog = new Blockchain(filename);
     queue = new TSQueue();
 
+    requestNum = blog->depth() + 1;
+
     int opt = 1;
     socklen_t addrLen = sizeof(inAddr);
 

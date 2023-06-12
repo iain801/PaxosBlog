@@ -8,6 +8,7 @@
 #include <string>
 #include <deque>
 #include <atomic>
+#include <mutex>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -41,6 +42,8 @@ class PaxosHandler {
     std::unordered_map<int, std::atomic<int>> ballotVotes;
     std::unordered_map<int, std::atomic<int>> requestVotes;
     TSQueue* queue;
+
+    std::mutex decideMutex;
 
     Blockchain* blog;
 

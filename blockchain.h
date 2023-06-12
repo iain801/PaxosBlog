@@ -3,6 +3,7 @@
 
 #include <string>
 #include <atomic>
+#include <mutex>
 
 enum OP{COMMENT, POST};
 class Block {
@@ -68,6 +69,9 @@ class Blockchain {
 
     Block* findPost(std::string title);
 
+    
+    std::mutex saveMutex;
+    std::mutex chainMutex;
     std::string fname;
     void save(Block* newBlock);
 
