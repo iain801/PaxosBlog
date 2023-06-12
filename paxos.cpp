@@ -145,6 +145,10 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
         inPID = std::stoi(msgVector[1]);
         inDepth = std::stoi(msgVector[2]);
         msgVector.erase(msgVector.begin(), msgVector.begin() + 3);
+        
+        if(inDepth < blog->depth()) {
+            catchUpNode(inPID, inDepth);
+        }
 
         if(acceptLocks.find(inRequest) == acceptLocks.end())
             acceptLocks.emplace(inRequest, false);
@@ -396,7 +400,9 @@ void PaxosHandler::catchUpNode(int clientPID, int clientDepth)
         // request num of -1 to not interfere with request counting
         ss  << "DECIDE" << sep << i << sep << myPID << sep 
             << i << sep << blog->getBlock(i, false);
+
         sendMessage(clientPID, ss.str());
+
         ss.str(std::string());
         ss.clear();
     }
