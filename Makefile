@@ -28,5 +28,5 @@ runner.o: runner.cpp
 	$(CC) $(FLAGS) runner.cpp -o $(OBJDIR)runner.o
 
 clean:
-	rm -f $(OUT) $(OBJDIR)*.o
+	rm -f $(OUT) $(OBJDIR)*.o saves/*.blog
 	
