@@ -110,8 +110,9 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
         inBallot = std::stoi(msgVector[0]);
         inPID = std::stoi(msgVector[3]);
         inDepth = std::stoi(msgVector[2]);
-        if(ballotVotes[inBallot] > 0)
+        if(ballotVotes[inBallot] > 0) {
             ++ballotVotes[inBallot];
+        }
     }
     else if (opType == "LEADER") {
         inBallot = std::stoi(msgVector[0]);
@@ -158,6 +159,11 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
 
             Block* newBlock = blog->makeBlock(msgVector[1], msgVector[2], msgVector[3], msgVector[4]);
 
+            if (!newBlock) {
+                std::cout << "Post not found for: " << msgVector[3] << std::endl;
+                return;
+            }
+
             if(!newBlock->validNonce(std::stoi(msgVector[5]))) {
                 std::cout << "Proposed Block <" << inRequest << sep << inPID << "> has invalid nonce" << std::endl;
                 delete newBlock;
@@ -199,6 +205,11 @@ void PaxosHandler::msgHandler(std::string msg, int clientSock)
             }
 
             Block* newBlock = blog->makeBlock(msgVector[1], msgVector[2], msgVector[3], msgVector[4]);
+
+            if (!newBlock) {
+                std::cout << "Post not found for: " << msgVector[3] << std::endl;
+                return;
+            }
     
             if(!newBlock->validNonce(std::stoi(msgVector[5]))) {
                 std::cout << "Invalid nonce in " << newBlock->str() << std::endl;
@@ -334,6 +345,12 @@ void PaxosHandler::acceptRequests()
         auto transArray = split(transaction);
         Block* newBlock = blog->makeBlock(transArray[0], transArray[1], transArray[2], transArray[3]);
         int thisRequest = ++requestNum;
+
+        if (!newBlock) {
+            std::cout << "Post not found for: " << transArray[2] << std::endl;
+            queue->pop();
+            continue;
+        }
 
         std::ostringstream ss;
         ss  << "ACCEPT" << sep << thisRequest << sep << myPID << sep << blog->depth() << sep
